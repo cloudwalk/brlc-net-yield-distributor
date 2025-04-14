@@ -11,7 +11,7 @@ import { RescuableUpgradeable } from "./base/RescuableUpgradeable.sol";
 import { UUPSExtUpgradeable } from "./base/UUPSExtUpgradeable.sol";
 import { Versionable } from "./base/Versionable.sol";
 
-import { AssetLiabilityStorage } from "./AssetLiabilityStorage.sol";
+import { AssetLiabilityStorageLayout } from "./AssetLiabilityStorageLayout.sol";
 
 import { IAssetLiability } from "./interfaces/IAssetLiability.sol";
 import { IAssetLiabilityPrimary } from "./interfaces/IAssetLiability.sol";
@@ -24,7 +24,7 @@ import { IAssetLiabilityConfiguration } from "./interfaces/IAssetLiability.sol";
  * @custom:storage-layout Uses ERC-7201 namespaced storage pattern.
  */
 contract AssetLiability is
-    AssetLiabilityStorage,
+    AssetLiabilityStorageLayout,
     AccessControlExtUpgradeable,
     PausableExtUpgradeable,
     RescuableUpgradeable,
@@ -32,14 +32,6 @@ contract AssetLiability is
     Versionable,
     IAssetLiability
 {
-    // ------------------ Constants ------------------------------- //
-
-    /// @dev The role of this contract owner.
-    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
-
-    /// @dev The role of manager that is allowed to perform operations with the liability.
-    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-
     // ------------------ Constructor ----------------------------- //
 
     /// @dev Constructor that prohibits the initialization of the implementation of the upgradable contract.
@@ -104,15 +96,15 @@ contract AssetLiability is
      * - The new treasury address must not be the same as currently set.
      */
     function setOperationalTreasury(address operationalTreasury_) external onlyRole(OWNER_ROLE) {
-        AssetLiabilityData storage data = _getAssetLiabilityStorage();
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
 
-        if (operationalTreasury_ == data.operationalTreasury) {
+        if (operationalTreasury_ == $.operationalTreasury) {
             revert AssetLiability_TreasuryAddressAlreadySet();
         }
 
-        emit TreasuryUpdated(operationalTreasury_, data.operationalTreasury);
+        emit TreasuryUpdated(operationalTreasury_, $.operationalTreasury);
 
-        data.operationalTreasury = operationalTreasury_;
+        $.operationalTreasury = operationalTreasury_;
     }
 
     /**
@@ -262,8 +254,8 @@ contract AssetLiability is
      */
     function _transferWithLiability(address account, uint256 amount) internal {
         _increaseLiability(account, amount);
-        AssetLiabilityData storage data = _getAssetLiabilityStorage();
-        SafeERC20.safeTransferFrom(IERC20(data.underlyingToken), data.operationalTreasury, account, amount);
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, account, amount);
     }
 
     /**
@@ -281,26 +273,17 @@ contract AssetLiability is
      * Emits a {LiabilityUpdated} event.
      */
     function _increaseLiability(address account, uint256 amount) internal {
-        if (account == address(0)) {
-            revert AssetLiability_AccountAddressZero();
-        }
+        _checkLiabilityOperationParameters(account, amount);
 
-        if (amount == 0) {
-            revert AssetLiability_AmountZero();
-        }
-
-        if (amount > type(uint64).max) {
-            revert AssetLiability_AmountOverflow();
-        }
-
-        AssetLiabilityData storage data = _getAssetLiabilityStorage();
-        Liability storage liability = data.liabilities[account];
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        Liability storage liability = $.liabilities[account];
         uint256 oldLiability = liability.amount;
 
-        liability.amount += uint64(amount);
-        data.totalLiability += amount;
+        uint256 newLiability = uint64(oldLiability) + uint64(amount); // Panic if result is larger than 64 bits
+        liability.amount = uint64(newLiability);
+        $.totalLiability += amount;
 
-        emit LiabilityUpdated(account, liability.amount, oldLiability);
+        emit LiabilityUpdated(account, newLiability, oldLiability);
     }
 
     /**
@@ -319,6 +302,35 @@ contract AssetLiability is
      * Emits a {LiabilityUpdated} event.
      */
     function _decreaseLiability(address account, uint256 amount) internal {
+        _checkLiabilityOperationParameters(account, amount);
+
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        Liability storage liability = $.liabilities[account];
+        uint256 oldLiability = liability.amount;
+
+        if (amount > oldLiability) {
+            revert AssetLiability_DecreaseAmountExcess();
+        }
+
+        // Safe to use unchecked here because:
+        // 1. We've verified that amount <= oldLiability above
+        // 2. data.totalLiability >= liability.amount by definition
+        uint256 newLiability;
+        unchecked {
+            newLiability = oldLiability - amount;
+            liability.amount = uint64(newLiability);
+            $.totalLiability -= amount;
+        }
+
+        emit LiabilityUpdated(account, newLiability, oldLiability);
+    }
+
+    /**
+     * @dev Checks the parameters of the liability increase/decrease operation.
+     * @param account The account to update the liability for.
+     * @param amount The amount to update the liability by.
+     */
+    function _checkLiabilityOperationParameters(address account, uint256 amount) internal pure {
         if (account == address(0)) {
             revert AssetLiability_AccountAddressZero();
         }
@@ -330,24 +342,6 @@ contract AssetLiability is
         if (amount > type(uint64).max) {
             revert AssetLiability_AmountOverflow();
         }
-
-        AssetLiabilityData storage data = _getAssetLiabilityStorage();
-        Liability storage liability = data.liabilities[account];
-        uint256 oldLiability = liability.amount;
-
-        if (amount > oldLiability) {
-            revert AssetLiability_DecreaseAmountExcess();
-        }
-
-        // Safe to use unchecked here because:
-        // 1. We've verified that amount <= oldLiability above
-        // 2. data.totalLiability >= liability.amount by definition
-        unchecked {
-            liability.amount -= uint64(amount);
-            data.totalLiability -= amount;
-        }
-
-        emit LiabilityUpdated(account, liability.amount, oldLiability);
     }
 
     /**
