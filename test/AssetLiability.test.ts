@@ -40,13 +40,12 @@ const ADDRESS_ZERO = ethers.ZeroAddress;
 const ALLOWANCE_MAX = ethers.MaxUint256;
 const BALANCE_INITIAL = 1000_000_000_000n;
 
-const LIABILITY_AMOUNT = 12345678;
-const LIABILITY_AMOUNTS: number[] = [
+const LIABILITY_AMOUNT = 12345678n;
+const LIABILITY_AMOUNTS: bigint[] = [
   LIABILITY_AMOUNT,
-  LIABILITY_AMOUNT * 2,
-  LIABILITY_AMOUNT * 3,
-  LIABILITY_AMOUNT * 4,
-  LIABILITY_AMOUNT * 5
+  LIABILITY_AMOUNT * 2n,
+  LIABILITY_AMOUNT * 3n,
+  LIABILITY_AMOUNT * 4n
 ];
 
 interface Version {
@@ -56,16 +55,6 @@ interface Version {
 
   [key: string]: number; // Indexing signature to ensure that fields are iterated over in a key-value style
 }
-
-interface Liability {
-  amount: bigint;
-
-  [key: string]: bigint; // Indexing signature to ensure that fields are iterated over in a key-value style
-}
-
-const defaultLiability: Liability = {
-  amount: 0n
-};
 
 interface Fixture {
   assetLiability: Contract;
@@ -132,10 +121,6 @@ describe("Contract 'AssetLiability'", async () => {
 
     // Mint initial balances
     await proveTx(tokenMock.mint(treasury.address, BALANCE_INITIAL));
-    for (let i = 0; i < LIABILITY_AMOUNTS.length; ++i) {
-      const account = users[i].address;
-      await proveTx(tokenMock.mint(account, BALANCE_INITIAL));
-    }
 
     // Approvals
     await proveTx(connect(tokenMock, treasury).approve(getAddress(assetLiability), ALLOWANCE_MAX));
@@ -158,14 +143,17 @@ describe("Contract 'AssetLiability'", async () => {
       // Role hashes
       expect(await assetLiability.OWNER_ROLE()).to.equal(ROLES.OWNER_ROLE);
       expect(await assetLiability.MANAGER_ROLE()).to.equal(ROLES.MANAGER_ROLE);
+      expect(await assetLiability.PAUSER_ROLE()).to.equal(ROLES.PAUSER_ROLE);
 
       // The role admins
       expect(await assetLiability.getRoleAdmin(ROLES.OWNER_ROLE)).to.equal(ROLES.OWNER_ROLE);
       expect(await assetLiability.getRoleAdmin(ROLES.MANAGER_ROLE)).to.equal(ROLES.OWNER_ROLE);
+      expect(await assetLiability.getRoleAdmin(ROLES.PAUSER_ROLE)).to.equal(ROLES.OWNER_ROLE);
 
       // The deployer should have the owner role, but not the other roles
       expect(await assetLiability.hasRole(ROLES.OWNER_ROLE, deployer.address)).to.equal(true);
       expect(await assetLiability.hasRole(ROLES.MANAGER_ROLE, deployer.address)).to.equal(false);
+      expect(await assetLiability.hasRole(ROLES.PAUSER_ROLE, deployer.address)).to.equal(false);
 
       // Default values for treasury and total liability
       expect(await assetLiability.operationalTreasury()).to.equal(ADDRESS_ZERO);
@@ -201,9 +189,9 @@ describe("Contract 'AssetLiability'", async () => {
     it("Is reverted if the caller does not have the owner role", async () => {
       const { assetLiability } = await setUpFixture(deployContracts);
 
-      await expect(connect(assetLiability, user).upgradeToAndCall(getAddress(assetLiability), "0x"))
+      await expect(connect(assetLiability, stranger).upgradeToAndCall(getAddress(assetLiability), "0x"))
         .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
-        .withArgs(user.address, ROLES.OWNER_ROLE);
+        .withArgs(stranger.address, ROLES.OWNER_ROLE);
     });
 
     it("Is reverted if the provided implementation address does not belong to an AssetLiability contract", async () => {
@@ -226,11 +214,17 @@ describe("Contract 'AssetLiability'", async () => {
     it("Executes as expected and emits the correct event", async () => {
       const { assetLiability } = await setUpFixture(deployContracts);
 
+      // Check it can be set to a non-zero address
       await expect(assetLiability.setOperationalTreasury(treasury.address))
         .to.emit(assetLiability, EVENTS.TreasuryUpdated)
         .withArgs(treasury.address, ADDRESS_ZERO);
-
       expect(await assetLiability.operationalTreasury()).to.eq(treasury.address);
+
+      // Check it can be set to a zero address
+      await expect(assetLiability.setOperationalTreasury(ADDRESS_ZERO))
+        .to.emit(assetLiability, EVENTS.TreasuryUpdated)
+        .withArgs(ADDRESS_ZERO, treasury.address);
+      expect(await assetLiability.operationalTreasury()).to.eq(ADDRESS_ZERO);
     });
 
     it("Is reverted if caller does not have the owner role", async () => {
@@ -239,12 +233,22 @@ describe("Contract 'AssetLiability'", async () => {
       await expect(connect(assetLiability, stranger).setOperationalTreasury(treasury.address))
         .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
         .withArgs(stranger.address, ROLES.OWNER_ROLE);
+
+      // An account with the manager role cannot do that too
+      await proveTx(assetLiability.grantRole(ROLES.MANAGER_ROLE, manager.address));
+      await expect(connect(assetLiability, manager).setOperationalTreasury(treasury.address))
+        .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
+        .withArgs(manager.address, ROLES.OWNER_ROLE);
     });
 
     it("Is reverted if the new treasury address is the same as the previous one", async () => {
       const { assetLiability } = await setUpFixture(deployContracts);
 
-      // First set the treasury
+      // Check for the zero treasury address first
+      await expect(assetLiability.setOperationalTreasury(ADDRESS_ZERO))
+        .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_TreasuryAddressAlreadySet);
+
+      // Set the treasury
       await proveTx(assetLiability.setOperationalTreasury(treasury.address));
 
       // Now try to set it to the same address
@@ -257,72 +261,87 @@ describe("Contract 'AssetLiability'", async () => {
     describe("Executes as expected if", async () => {
       it("The transfer is for a single account", async () => {
         const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
-        const amount = BigInt(LIABILITY_AMOUNT);
+        const amount = LIABILITY_AMOUNT;
         const account = user.address;
 
+        const tx = connect(assetLiability, manager).transferWithLiability([account], [amount]);
+
         // First check the event emission
-        await expect(connect(assetLiability, manager).transferWithLiability([account], [amount]))
+        await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(account, amount, 0);
 
-        // Then check the token balances change in a separate test
-        await expect(
-          connect(assetLiability, manager).transferWithLiability([account], [amount])
-        ).to.changeTokenBalances(
+        // Then check the token balances change
+        await expect(tx).to.changeTokenBalances(
           tokenMock,
           [treasury.address, account],
           [-amount, amount]
         );
 
-        expect(await assetLiability.liabilityOf(account)).to.equal(amount * 2n); // x2 because we called it twice
-        expect(await assetLiability.totalLiability()).to.equal(amount * 2n);
+        expect(await assetLiability.liabilityOf(account)).to.equal(amount);
+        expect(await assetLiability.totalLiability()).to.equal(amount);
       });
 
-      it("The transfer is for multiple accounts", async () => {
+      it("The transfer is for multiple accounts, including 2 times for the first one", async () => {
         const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = users.slice(0, 3).map(user => user.address);
-        const amounts = LIABILITY_AMOUNTS.slice(0, 3).map(BigInt);
+        const transferCount = 4;
+        const accounts = users.slice(0, transferCount - 1).map(user => user.address);
+        accounts.push(users[0].address);
+        const amounts = LIABILITY_AMOUNTS.slice(0, transferCount - 1);
+        amounts.push(LIABILITY_AMOUNTS[transferCount - 1]);
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
 
         // Check that the function emits the correct events
         const tx = await connect(assetLiability, manager).transferWithLiability(accounts, amounts);
+        for (let i = 0; i < accounts.length - 1; ++i) {
+          await expect(tx)
+            .to.emit(assetLiability, EVENTS.LiabilityUpdated)
+            .withArgs(accounts[i], amounts[i], 0);
+        }
         await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[0], amounts[0], 0);
-        await expect(tx)
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[1], amounts[1], 0);
-        await expect(tx)
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[2], amounts[2], 0);
+          .withArgs(accounts[transferCount - 1], amounts[transferCount - 1] + amounts[0], amounts[0]);
 
         // Check the final state
-        expect(await assetLiability.liabilityOf(accounts[0])).to.equal(amounts[0]);
+        expect(await assetLiability.liabilityOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
         expect(await assetLiability.liabilityOf(accounts[1])).to.equal(amounts[1]);
         expect(await assetLiability.liabilityOf(accounts[2])).to.equal(amounts[2]);
         expect(await assetLiability.totalLiability()).to.equal(totalAmount);
 
-        // Check the token balances separately for each account
-        for (let i = 0; i < accounts.length; i++) {
-          await expect(
-            connect(assetLiability, manager).transferWithLiability([accounts[i]], [amounts[i]])
-          ).to.changeTokenBalances(
-            tokenMock,
-            [treasury.address, accounts[i]],
-            [-amounts[i], amounts[i]]
-          );
-        }
+        // Check the token balance changes
+        await expect(tx).to.changeTokenBalances(
+          tokenMock,
+          [treasury.address, accounts[0], accounts[1], accounts[2]],
+          [-totalAmount, (amounts[0] + amounts[transferCount - 1]), amounts[1], amounts[2]]
+        );
+      });
+
+      it("The transfer is for the zero number of accounts", async () => {
+        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+
+        const tx = connect(assetLiability, manager).transferWithLiability([], []);
+
+        // First check there is no event emission
+        await expect(tx).not.to.emit(assetLiability, EVENTS.LiabilityUpdated);
+
+        // Then check there is no token balance change
+        await expect(tx).to.changeTokenBalances(
+          tokenMock,
+          [treasury.address],
+          [0]
+        );
+
+        expect(await assetLiability.totalLiability()).to.equal(0);
       });
     });
 
     describe("Is reverted if", async () => {
-      it("The arrays length mismatch", async () => {
+      it("The contract is paused", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [user.address, users[1].address];
-        const amounts = [BigInt(LIABILITY_AMOUNT)];
+        await pauseContract(assetLiability);
 
-        await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
+        await expect(connect(assetLiability, manager).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
       });
 
       it("The caller lacks MANAGER_ROLE", async () => {
@@ -331,40 +350,58 @@ describe("Contract 'AssetLiability'", async () => {
         await expect(connect(assetLiability, stranger).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
+
+        await expect(connect(assetLiability, deployer).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
+          .withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
 
-      it("The account address is zero", async () => {
+      it("The arrays length mismatch", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [user.address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT];
 
-        await expect(connect(assetLiability, manager).transferWithLiability([ADDRESS_ZERO], [BigInt(LIABILITY_AMOUNT)]))
+        await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
+
+        await expect(connect(assetLiability, manager).transferWithLiability([], amounts))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
+      });
+
+      it("One of the provided accounts addresses is zero", async () => {
+        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [user.address, ADDRESS_ZERO];
+        const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT];
+
+        await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountAddressZero);
       });
 
-      it("The amount is zero", async () => {
+      it("One of the provided amounts is zero", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [users[0].address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT, 0n];
 
-        await expect(connect(assetLiability, manager).transferWithLiability([user.address], [0]))
+        await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountZero);
       });
 
-      it("The amount exceeds uint64 max", async () => {
+      it("One of the provided amounts exceeds 64-bit unsigned integer", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const maxUint64 = maxUintForBits(64);
-        const amount = maxUint64 + 1n;
-        const account = user.address;
+        const accounts = [users[0].address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT, maxUintForBits(64) + 1n];
 
-        await expect(connect(assetLiability, manager).transferWithLiability([account], [amount]))
+        await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountOverflow);
       });
 
-      it("The contract is paused", async () => {
+      it("The result liability for an account exceeds 64-bit unsigned integer", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [user.address, user.address];
+        const amounts = [1n, maxUintForBits(64)];
 
-        // Pause the contract
-        await pauseContract(assetLiability);
-
-        await expect(connect(assetLiability, manager).transferWithLiability([user.address], [BigInt(LIABILITY_AMOUNT)]))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
+        await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
+          .to.be.revertedWithPanic(0x11);
       });
     });
   });
@@ -372,107 +409,142 @@ describe("Contract 'AssetLiability'", async () => {
   describe("Function 'increaseLiability()'", async () => {
     describe("Executes as expected if", async () => {
       it("The liability is increased for a single account", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const amount = BigInt(LIABILITY_AMOUNT);
+        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const account = user.address;
+        const amount = maxUintForBits(64);
 
-        await expect(connect(assetLiability, manager).increaseLiability([account], [amount]))
+        const tx = connect(assetLiability, manager).increaseLiability([account], [amount]);
+
+        await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(account, amount, 0);
+        await expect(tx).to.changeTokenBalances(tokenMock, [treasury.address, account], [0, 0]);
 
         expect(await assetLiability.liabilityOf(account)).to.equal(amount);
         expect(await assetLiability.totalLiability()).to.equal(amount);
       });
 
-      it("The liability is increased for multiple accounts", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = users.slice(0, 3).map(user => user.address);
-        const amounts = LIABILITY_AMOUNTS.slice(0, 3).map(BigInt);
+      it("The liability is increased for multiple accounts, including 2 times for the first one", async () => {
+        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [users[0].address, users[1].address, users[0].address];
+        const amounts = [LIABILITY_AMOUNTS[0], LIABILITY_AMOUNTS[1], LIABILITY_AMOUNTS[2]];
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
+        const transferCount = accounts.length;
 
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
+        // Check that the function emits the correct events
+        const tx = await connect(assetLiability, manager).increaseLiability(accounts, amounts);
+        await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[0], amounts[0], 0)
+          .withArgs(accounts[0], amounts[0], 0);
+        await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[1], amounts[1], 0)
+          .withArgs(accounts[1], amounts[1], 0);
+        await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[2], amounts[2], 0);
+          .withArgs(accounts[0], amounts[transferCount - 1] + amounts[0], amounts[0]);
 
-        expect(await assetLiability.liabilityOf(accounts[0])).to.equal(amounts[0]);
+        // Check the final state
+        expect(await assetLiability.liabilityOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
         expect(await assetLiability.liabilityOf(accounts[1])).to.equal(amounts[1]);
-        expect(await assetLiability.liabilityOf(accounts[2])).to.equal(amounts[2]);
         expect(await assetLiability.totalLiability()).to.equal(totalAmount);
+
+        // Check the token balances have not changed
+        await expect(tx).to.changeTokenBalances(
+          tokenMock,
+          [treasury.address, accounts[0], accounts[1]],
+          [0, 0, 0]
+        );
       });
 
-      it("The account already has a liability", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const amount1 = BigInt(LIABILITY_AMOUNT);
-        const amount2 = BigInt(LIABILITY_AMOUNT * 2);
+      it("The liability is increased for the zero number of accounts", async () => {
+        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const account = user.address;
+        const initialAmount = (LIABILITY_AMOUNT);
+        await proveTx(connect(assetLiability, manager).increaseLiability([account], [initialAmount]));
 
-        // First increase
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [amount1]));
+        const tx = connect(assetLiability, manager).increaseLiability([], []);
 
-        // Second increase
-        await expect(connect(assetLiability, manager).increaseLiability([account], [amount2]))
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(account, amount1 + amount2, amount1);
+        // First check there is no event emission
+        await expect(tx).not.to.emit(assetLiability, EVENTS.LiabilityUpdated);
 
-        expect(await assetLiability.liabilityOf(account)).to.equal(amount1 + amount2);
-        expect(await assetLiability.totalLiability()).to.equal(amount1 + amount2);
+        // Then check there is no token balance change
+        await expect(tx).to.changeTokenBalances(
+          tokenMock,
+          [treasury.address, account],
+          [0, 0]
+        );
+
+        expect(await assetLiability.totalLiability()).to.equal(initialAmount);
       });
     });
 
     describe("Is reverted if", async () => {
-      it("The arrays length mismatch", async () => {
+      it("The contract is paused", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [user.address, users[1].address];
-        const amounts = [BigInt(LIABILITY_AMOUNT)];
+        await pauseContract(assetLiability);
 
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
+        await expect(connect(assetLiability, manager).increaseLiability([user.address], [LIABILITY_AMOUNT]))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
       });
 
       it("The caller lacks MANAGER_ROLE", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(assetLiability, stranger).increaseLiability([user.address], [BigInt(LIABILITY_AMOUNT)]))
+        await expect(connect(assetLiability, stranger).increaseLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
+
+        await expect(connect(assetLiability, deployer).increaseLiability([user.address], [LIABILITY_AMOUNT]))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
+          .withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
 
-      it("The account address is zero", async () => {
+      it("The arrays length mismatch", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [user.address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT];
 
-        await expect(connect(assetLiability, manager).increaseLiability([ADDRESS_ZERO], [BigInt(LIABILITY_AMOUNT)]))
+        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
+
+        await expect(connect(assetLiability, manager).increaseLiability([], amounts))
+          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
+      });
+
+      it("One of the provided accounts addresses is zero", async () => {
+        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [user.address, ADDRESS_ZERO];
+        const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT];
+
+        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountAddressZero);
       });
 
-      it("The amount is zero", async () => {
+      it("One of the provided amounts is zero", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [users[0].address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT, 0n];
 
-        await expect(connect(assetLiability, manager).increaseLiability([user.address], [0]))
+        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountZero);
       });
 
-      it("The amount exceeds uint64 max", async () => {
+      it("One of the provided amounts exceeds 64-bit unsigned integer", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const maxUint64 = maxUintForBits(64);
-        const amount = maxUint64 + 1n;
-        const account = user.address;
+        const accounts = [users[0].address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT, maxUintForBits(64) + 1n];
 
-        await expect(connect(assetLiability, manager).increaseLiability([account], [amount]))
+        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountOverflow);
       });
 
-      it("The contract is paused", async () => {
+      it("The result liability for an account exceeds 64-bit unsigned integer", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const accounts = [user.address, user.address];
+        const amounts = [maxUintForBits(64), 1n];
 
-        // Pause the contract
-        await pauseContract(assetLiability);
-
-        await expect(connect(assetLiability, manager).increaseLiability([user.address], [BigInt(LIABILITY_AMOUNT)]))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
+        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
+          .to.be.revertedWithPanic(0x11);
       });
     });
   });
@@ -481,7 +553,7 @@ describe("Contract 'AssetLiability'", async () => {
     describe("Executes as expected if", async () => {
       it("The decrease is for a single account's full liability", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const amount = BigInt(LIABILITY_AMOUNT);
+        const amount = (LIABILITY_AMOUNT);
         const account = user.address;
 
         // First create a liability
@@ -499,7 +571,7 @@ describe("Contract 'AssetLiability'", async () => {
       it("The decrease is for multiple accounts", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const accounts = users.slice(0, 3).map(user => user.address);
-        const amounts = LIABILITY_AMOUNTS.slice(0, 3).map(BigInt);
+        const amounts = LIABILITY_AMOUNTS.slice(0, 3);
 
         // First create liabilities
         await proveTx(connect(assetLiability, manager).increaseLiability(accounts, amounts));
@@ -521,8 +593,8 @@ describe("Contract 'AssetLiability'", async () => {
 
       it("The decrease is partial", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const fullAmount = BigInt(LIABILITY_AMOUNT);
-        const partialAmount = BigInt(LIABILITY_AMOUNT / 2);
+        const fullAmount = LIABILITY_AMOUNT;
+        const partialAmount = LIABILITY_AMOUNT / 2n;
         const account = user.address;
 
         // First create a liability
@@ -542,7 +614,7 @@ describe("Contract 'AssetLiability'", async () => {
       it("The arrays length mismatch", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const accounts = [user.address, users[1].address];
-        const amounts = [BigInt(LIABILITY_AMOUNT)];
+        const amounts = [LIABILITY_AMOUNT];
 
         await expect(connect(assetLiability, manager).decreaseLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
@@ -551,7 +623,7 @@ describe("Contract 'AssetLiability'", async () => {
       it("The caller lacks MANAGER_ROLE", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(assetLiability, stranger).decreaseLiability([user.address], [BigInt(LIABILITY_AMOUNT)]))
+        await expect(connect(assetLiability, stranger).decreaseLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
       });
@@ -559,7 +631,7 @@ describe("Contract 'AssetLiability'", async () => {
       it("The account address is zero", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(assetLiability, manager).decreaseLiability([ADDRESS_ZERO], [BigInt(LIABILITY_AMOUNT)]))
+        await expect(connect(assetLiability, manager).decreaseLiability([ADDRESS_ZERO], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountAddressZero);
       });
 
@@ -572,7 +644,7 @@ describe("Contract 'AssetLiability'", async () => {
 
       it("The decrease amount exceeds current liability", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const initialAmount = BigInt(LIABILITY_AMOUNT);
+        const initialAmount = (LIABILITY_AMOUNT);
         const excessAmount = initialAmount + 1n;
         const account = user.address;
 
@@ -588,7 +660,7 @@ describe("Contract 'AssetLiability'", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const maxUint64 = maxUintForBits(64);
         const overflowAmount = maxUint64 + 1n;
-        const initialAmount = BigInt(LIABILITY_AMOUNT) * 10n; // Create a valid initial liability
+        const initialAmount = (LIABILITY_AMOUNT) * 10n; // Create a valid initial liability
         const account = user.address;
 
         // First create a valid liability
@@ -601,7 +673,7 @@ describe("Contract 'AssetLiability'", async () => {
 
       it("The contract is paused", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const amount = BigInt(LIABILITY_AMOUNT);
+        const amount = (LIABILITY_AMOUNT);
         const account = user.address;
 
         // First create a liability
@@ -614,45 +686,6 @@ describe("Contract 'AssetLiability'", async () => {
         await expect(connect(assetLiability, manager).decreaseLiability([account], [amount]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
       });
-    });
-  });
-
-  describe("View Functions", async () => {
-    it("liabilityOf() returns correct amount", async () => {
-      const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-      const amount = BigInt(LIABILITY_AMOUNT);
-      const account = user.address;
-
-      // Initially zero
-      expect(await assetLiability.liabilityOf(account)).to.equal(0);
-
-      // After increasing
-      await proveTx(connect(assetLiability, manager).increaseLiability([account], [amount]));
-      expect(await assetLiability.liabilityOf(account)).to.equal(amount);
-    });
-
-    it("totalLiability() returns correct total", async () => {
-      const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-      const accounts = users.slice(0, 3).map(user => user.address);
-      const amounts = LIABILITY_AMOUNTS.slice(0, 3).map(BigInt);
-      const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
-
-      // Initially zero
-      expect(await assetLiability.totalLiability()).to.equal(0);
-
-      // After increasing for multiple accounts
-      await proveTx(connect(assetLiability, manager).increaseLiability(accounts, amounts));
-      expect(await assetLiability.totalLiability()).to.equal(totalAmount);
-    });
-
-    it("underlyingToken() returns correct address", async () => {
-      const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
-      expect(await assetLiability.underlyingToken()).to.equal(getAddress(tokenMock));
-    });
-
-    it("operationalTreasury() returns correct address", async () => {
-      const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-      expect(await assetLiability.operationalTreasury()).to.equal(treasury.address);
     });
   });
 });
