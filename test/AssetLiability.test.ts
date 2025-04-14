@@ -1,15 +1,15 @@
 import { ethers, upgrades } from "hardhat";
 import { expect } from "chai";
-import { Contract, ContractFactory, TransactionResponse } from "ethers";
+import { Contract, ContractFactory } from "ethers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { checkContractUupsUpgrading, connect, getAddress, proveTx } from "../test-utils/eth";
 import { checkEquality, maxUintForBits, setUpFixture } from "../test-utils/common";
 
 const EXPECTED_VERSION: Version = {
-    major: 1,
-    minor: 0,
-    patch: 0
-  };
+  major: 1,
+  minor: 0,
+  patch: 0
+};
 
 const ROLES = {
   OWNER_ROLE: ethers.id("OWNER_ROLE"),
@@ -18,23 +18,23 @@ const ROLES = {
 };
 
 const EVENTS = {
-    LiabilityUpdated: "LiabilityUpdated",
-    TreasuryUpdated: "TreasuryUpdated"
+  LiabilityUpdated: "LiabilityUpdated",
+  TreasuryUpdated: "TreasuryUpdated"
 };
 
 const ERRORS = {
-    AssetLiability_InvalidInitialization: "InvalidInitialization",
-    AssetLiability_AccessControlUnauthorizedAccount: "AccessControlUnauthorizedAccount",
-    AssetLiability_ImplementationAddressInvalid: "AssetLiability_ImplementationAddressInvalid",
-    AssetLiability_UnderlyingTokenAddressZero: "AssetLiability_UnderlyingTokenAddressZero",
-    AssetLiability_TreasuryAddressAlreadySet: "AssetLiability_TreasuryAddressAlreadySet",
-    AssetLiability_AccountsAndAmountsLengthMismatch: "AssetLiability_AccountsAndAmountsLengthMismatch",
-    AssetLiability_AccountAddressZero: "AssetLiability_AccountAddressZero",
-    AssetLiability_AmountZero: "AssetLiability_AmountZero",
-    AssetLiability_DecreaseAmountExcess: "AssetLiability_DecreaseAmountExcess",
-    AssetLiability_AmountOverflow: "AssetLiability_AmountOverflow",
-    EnforcedPause: "EnforcedPause"
-}
+  AssetLiability_InvalidInitialization: "InvalidInitialization",
+  AssetLiability_AccessControlUnauthorizedAccount: "AccessControlUnauthorizedAccount",
+  AssetLiability_ImplementationAddressInvalid: "AssetLiability_ImplementationAddressInvalid",
+  AssetLiability_UnderlyingTokenAddressZero: "AssetLiability_UnderlyingTokenAddressZero",
+  AssetLiability_TreasuryAddressAlreadySet: "AssetLiability_TreasuryAddressAlreadySet",
+  AssetLiability_AccountsAndAmountsLengthMismatch: "AssetLiability_AccountsAndAmountsLengthMismatch",
+  AssetLiability_AccountAddressZero: "AssetLiability_AccountAddressZero",
+  AssetLiability_AmountZero: "AssetLiability_AmountZero",
+  AssetLiability_DecreaseAmountExcess: "AssetLiability_DecreaseAmountExcess",
+  AssetLiability_AmountOverflow: "AssetLiability_AmountOverflow",
+  EnforcedPause: "EnforcedPause"
+};
 
 const ADDRESS_ZERO = ethers.ZeroAddress;
 const ALLOWANCE_MAX = ethers.MaxUint256;
@@ -110,7 +110,10 @@ describe("Contract 'AssetLiability'", async () => {
 
   async function deployContracts(): Promise<Fixture> {
     const tokenMock = await deployTokenMock();
-    let assetLiability: Contract = await upgrades.deployProxy(assetLiabilityFactory, [getAddress(tokenMock)]) as Contract;
+    let assetLiability: Contract = await upgrades.deployProxy(
+      assetLiabilityFactory,
+      [getAddress(tokenMock)]
+    ) as Contract;
     await assetLiability.waitForDeployment();
     assetLiability = connect(assetLiability, deployer); // Explicitly specifying the initial account
 
@@ -263,7 +266,7 @@ describe("Contract 'AssetLiability'", async () => {
           .withArgs(account, amount, 0);
 
         // Then check the token balances change in a separate test
-        await expect(() =>
+        await expect(
           connect(assetLiability, manager).transferWithLiability([account], [amount])
         ).to.changeTokenBalances(
           tokenMock,
@@ -301,7 +304,7 @@ describe("Contract 'AssetLiability'", async () => {
 
         // Check the token balances separately for each account
         for (let i = 0; i < accounts.length; i++) {
-          await expect(() =>
+          await expect(
             connect(assetLiability, manager).transferWithLiability([accounts[i]], [amounts[i]])
           ).to.changeTokenBalances(
             tokenMock,
@@ -325,7 +328,7 @@ describe("Contract 'AssetLiability'", async () => {
       it("The caller lacks MANAGER_ROLE", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(assetLiability, stranger).transferWithLiability([user.address], [BigInt(LIABILITY_AMOUNT)]))
+        await expect(connect(assetLiability, stranger).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
       });
