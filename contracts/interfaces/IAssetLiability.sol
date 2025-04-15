@@ -9,6 +9,21 @@ pragma solidity ^0.8.4;
  */
 interface IAssetLiabilityPrimary {
     // ------------------ Events----------------------------------- //
+
+    /**
+     * @dev Emitted when the yield asset has been minted.
+     *
+     * @param amount The amount of yield asset that has been minted.
+     */
+    event YieldMinted(uint256 amount);
+
+    /**
+     * @dev Emitted when the yield asset has been burned.
+     *
+     * @param amount The amount of yield asset that has been burned.
+     */
+    event YieldBurned(uint256 amount);
+
     /**
      * @dev Emitted when the liability of an account has been updated.
      *
@@ -19,6 +34,24 @@ interface IAssetLiabilityPrimary {
     event LiabilityUpdated(address indexed account, uint256 newLiability, uint256 oldLiability);
 
     // ------------------ Transactional functions ----------------- //
+
+    /**
+     * @dev Mints a specified amount of underlying tokens as yield asset.
+     *
+     * This function can be called only by an account with a special role.
+     *
+     * @param amount The amount of yield asset to mint.
+     */
+    function mintYield(uint256 amount) external;
+
+    /**
+     * @dev Burns a specified amount of underlying tokens as yield asset.
+     *
+     * This function can be called only by an account with a special role.
+     *
+     * @param amount The amount of yield asset to burn.
+     */
+    function burnYield(uint256 amount) external;
 
     /**
      * @dev Transfers a specified amount of tokens from the operational treasury to an account and
@@ -54,6 +87,13 @@ interface IAssetLiabilityPrimary {
      * @return The liability of the account.
      */
     function liabilityOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Returns the total supply of yield asset.
+     *
+     * @return The total supply of yield asset.
+     */
+    function totalYieldSupply() external view returns (uint256);
 
     /**
      * @dev Returns the total liability of all accounts.

@@ -15,6 +15,9 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
     /// @dev The role of this contract owner.
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
+    /// @dev The role of minter that is allowed to mint and burn yield asset.
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     /// @dev The role of manager that is allowed to perform operations with the liability.
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
@@ -34,7 +37,8 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
      *
      * - underlyingToken ------ The address of the underlying token contract.
      * - operationalTreasury -- The address of the operational treasury.
-     * - totalLiability ------- The total liability of all accounts.
+     * - totalYieldSupply ----- The total supply of yield asset.
+     * - totalLiability ------- The sum of all liabilities.
      * - liabilities ---------- The mapping of a liability for a given account.
      *
      * @custom:storage-location erc7201:cloudwalk.storage.AssetLiability
@@ -49,9 +53,12 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
         // uint96 __reserved2; // Reserved for future use until the end of the storage slot
 
         // Slot 3
-        uint256 totalLiability;
+        uint256 totalYieldSupply;
 
         // Slot 4
+        uint256 totalLiability;
+
+        // Slot 5
         mapping(address account => Liability liability) liabilities;
     }
 

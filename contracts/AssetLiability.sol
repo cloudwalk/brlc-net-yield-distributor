@@ -16,6 +16,7 @@ import { AssetLiabilityStorageLayout } from "./AssetLiabilityStorageLayout.sol";
 import { IAssetLiability } from "./interfaces/IAssetLiability.sol";
 import { IAssetLiabilityPrimary } from "./interfaces/IAssetLiability.sol";
 import { IAssetLiabilityConfiguration } from "./interfaces/IAssetLiability.sol";
+import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 /**
  * @title AssetLiability contract
@@ -74,6 +75,7 @@ contract AssetLiability is
      */
     function __AssetLiability_init_unchained(address underlyingToken_) internal {
         _setRoleAdmin(OWNER_ROLE, OWNER_ROLE);
+        _setRoleAdmin(MINTER_ROLE, OWNER_ROLE);
         _setRoleAdmin(MANAGER_ROLE, OWNER_ROLE);
         _grantRole(OWNER_ROLE, _msgSender());
 
@@ -104,6 +106,43 @@ contract AssetLiability is
         emit OperationalTreasuryUpdated(operationalTreasury_, $.operationalTreasury);
 
         $.operationalTreasury = operationalTreasury_;
+    }
+
+    /**
+     * @inheritdoc IAssetLiabilityPrimary
+     *
+     * @dev Requirements:
+     *
+     * - The contract must not be paused.
+     * - The caller must have the {MINTER_ROLE} role.
+     */
+    function mintYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        IERC20Mintable($.underlyingToken).mint(address(this), amount);
+        $.totalYieldSupply += amount;
+        emit YieldMinted(amount);
+    }
+
+    /**
+     * @inheritdoc IAssetLiabilityPrimary
+     *
+     * @dev Requirements:
+     *
+     * - The contract must not be paused.
+     * - The caller must have the {MINTER_ROLE} role.
+     */
+    function burnYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        IERC20Mintable($.underlyingToken).burn(amount);
+        $.totalYieldSupply -= amount;
+        emit YieldBurned(amount);
+    }
+
+    /**
+     * @inheritdoc IAssetLiabilityPrimary
+     */
+    function totalYieldSupply() external view returns (uint256) {
+        return _getAssetLiabilityStorage().totalYieldSupply;
     }
 
     /**
@@ -162,13 +201,17 @@ contract AssetLiability is
         }
 
         AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        uint256 totalAmount = 0;
 
         for (uint256 i = 0; i < length; ) {
             _decreaseLiability($, accounts[i], amounts[i]);
+            totalAmount += amounts[i];
             unchecked {
                 ++i;
             } // Gas optimization - no risk of overflow with reasonable array sizes
         }
+
+        $.totalYieldSupply -= totalAmount;
     }
 
     // ------------------ View functions -------------------------- //
@@ -225,7 +268,7 @@ contract AssetLiability is
      */
     function _transferWithLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
         _increaseLiability($, account, amount);
-        SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, account, amount);
+        SafeERC20.safeTransfer(IERC20($.underlyingToken), account, amount);
     }
 
     /**
