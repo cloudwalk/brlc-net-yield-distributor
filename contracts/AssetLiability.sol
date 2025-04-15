@@ -128,8 +128,10 @@ contract AssetLiability is
             revert AssetLiability_AccountsAndAmountsLengthMismatch();
         }
 
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+
         for (uint256 i = 0; i < length; ) {
-            _transferWithLiability(accounts[i], amounts[i]);
+            _transferWithLiability($, accounts[i], amounts[i]);
             unchecked {
                 ++i;
             } // Gas optimization - no risk of overflow with reasonable array sizes
@@ -158,8 +160,10 @@ contract AssetLiability is
             revert AssetLiability_AccountsAndAmountsLengthMismatch();
         }
 
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+
         for (uint256 i = 0; i < length; ) {
-            _increaseLiability(accounts[i], amounts[i]);
+            _increaseLiability($, accounts[i], amounts[i]);
             unchecked {
                 ++i;
             } // Gas optimization - no risk of overflow with reasonable array sizes
@@ -189,8 +193,10 @@ contract AssetLiability is
             revert AssetLiability_AccountsAndAmountsLengthMismatch();
         }
 
+        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+
         for (uint256 i = 0; i < length; ) {
-            _decreaseLiability(accounts[i], amounts[i]);
+            _decreaseLiability($, accounts[i], amounts[i]);
             unchecked {
                 ++i;
             } // Gas optimization - no risk of overflow with reasonable array sizes
@@ -249,9 +255,8 @@ contract AssetLiability is
      *
      * Emits a {LiabilityUpdated} event (via the _increaseLiability function).
      */
-    function _transferWithLiability(address account, uint256 amount) internal {
-        _increaseLiability(account, amount);
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+    function _transferWithLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
+        _increaseLiability($, account, amount);
         SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, account, amount);
     }
 
@@ -269,10 +274,9 @@ contract AssetLiability is
      *
      * Emits a {LiabilityUpdated} event.
      */
-    function _increaseLiability(address account, uint256 amount) internal {
+    function _increaseLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
         _checkLiabilityOperationParameters(account, amount);
 
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
         Liability storage liability = $.liabilities[account];
         uint256 oldLiability = liability.amount;
 
@@ -298,10 +302,9 @@ contract AssetLiability is
      *
      * Emits a {LiabilityUpdated} event.
      */
-    function _decreaseLiability(address account, uint256 amount) internal {
+    function _decreaseLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
         _checkLiabilityOperationParameters(account, amount);
 
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
         Liability storage liability = $.liabilities[account];
         uint256 oldLiability = liability.amount;
 
