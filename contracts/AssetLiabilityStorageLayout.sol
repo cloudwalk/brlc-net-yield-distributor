@@ -27,23 +27,31 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
     bytes32 private constant ASSET_LIABILITY_STORAGE_LOCATION =
         0x001934aaca09350fe8ff6b8c7d5f6fad3d991d48c50551d7ada75910817eec00;
 
-    /// @custom:storage-location erc7201:cloudwalk.storage.AssetLiability
+    /**
+     * @dev Defines the contract storage structure.
+     *
+     * The fields:
+     *
+     * - underlyingToken ------ The address of the underlying token contract.
+     * - operationalTreasury -- The address of the operational treasury.
+     * - totalLiability ------- The total liability of all accounts.
+     * - liabilities ---------- The mapping of a liability for a given account.
+     *
+     * @custom:storage-location erc7201:cloudwalk.storage.AssetLiability
+     */
     struct AssetLiabilityStorage {
         // Slot 1
-        /// @dev The address of the underlying token contract
         address underlyingToken;
         // uint96 __reserved1; // Reserved for future use until the end of the storage slot
 
         // Slot 2
-        /// @dev The address of the operational treasury
         address operationalTreasury;
         // uint96 __reserved2; // Reserved for future use until the end of the storage slot
 
         // Slot 3
-        /// @dev The total liability of all accounts
         uint256 totalLiability;
+
         // Slot 4
-        /// @dev The mapping of a liability for a given account
         mapping(address account => Liability liability) liabilities;
     }
 

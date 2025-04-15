@@ -21,7 +21,6 @@ import { IAssetLiabilityConfiguration } from "./interfaces/IAssetLiability.sol";
  * @title AssetLiability contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev The contract that manages the asset liability of accounts.
- * @custom:storage-layout Uses ERC-7201 namespaced storage pattern.
  */
 contract AssetLiability is
     AssetLiabilityStorageLayout,
@@ -85,7 +84,7 @@ contract AssetLiability is
         _getAssetLiabilityStorage().underlyingToken = underlyingToken_;
     }
 
-    // ------------------ Configuration functions ----------------- //
+    // ------------------ Transactional functions ----------------- //
 
     /**
      * @inheritdoc IAssetLiabilityConfiguration
@@ -106,22 +105,6 @@ contract AssetLiability is
 
         $.operationalTreasury = operationalTreasury_;
     }
-
-    /**
-     * @inheritdoc IAssetLiabilityConfiguration
-     */
-    function underlyingToken() external view returns (address) {
-        return _getAssetLiabilityStorage().underlyingToken;
-    }
-
-    /**
-     * @inheritdoc IAssetLiabilityConfiguration
-     */
-    function operationalTreasury() external view returns (address) {
-        return _getAssetLiabilityStorage().operationalTreasury;
-    }
-
-    // ------------------ Transactional functions ----------------- //
 
     /**
      * @inheritdoc IAssetLiabilityPrimary
@@ -215,6 +198,20 @@ contract AssetLiability is
     }
 
     // ------------------ View functions -------------------------- //
+
+    /**
+     * @inheritdoc IAssetLiabilityConfiguration
+     */
+    function underlyingToken() external view returns (address) {
+        return _getAssetLiabilityStorage().underlyingToken;
+    }
+
+    /**
+     * @inheritdoc IAssetLiabilityConfiguration
+     */
+    function operationalTreasury() external view returns (address) {
+        return _getAssetLiabilityStorage().operationalTreasury;
+    }
 
     /**
      * @inheritdoc IAssetLiabilityPrimary
