@@ -1,4 +1,4 @@
-# Asset Liability Contracts
+# Asset Yield Contracts
 
 <p align="center">
   <img src="./docs/media/brlc-cover.png">
@@ -8,7 +8,7 @@
 ![example branch parameter](https://github.com/cloudwalk/brlc-asset-liability/actions/workflows/build.yml/badge.svg?branch=main)
 ![example branch parameter](https://github.com/cloudwalk/brlc-asset-liability/actions/workflows/test.yml/badge.svg?branch=main)
 
-This repository contains AssetLiability smart contracts.
+This repository contains AssetYield smart contracts.
 
 ## Project Setup
 1. Clone the repo.

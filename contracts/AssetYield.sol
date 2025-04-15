@@ -11,26 +11,26 @@ import { RescuableUpgradeable } from "./base/RescuableUpgradeable.sol";
 import { UUPSExtUpgradeable } from "./base/UUPSExtUpgradeable.sol";
 import { Versionable } from "./base/Versionable.sol";
 
-import { AssetLiabilityStorageLayout } from "./AssetLiabilityStorageLayout.sol";
+import { AssetYieldStorageLayout } from "./AssetYieldStorageLayout.sol";
 
-import { IAssetLiability } from "./interfaces/IAssetLiability.sol";
-import { IAssetLiabilityPrimary } from "./interfaces/IAssetLiability.sol";
-import { IAssetLiabilityConfiguration } from "./interfaces/IAssetLiability.sol";
+import { IAssetYield } from "./interfaces/IAssetYield.sol";
+import { IAssetYieldPrimary } from "./interfaces/IAssetYield.sol";
+import { IAssetYieldConfiguration } from "./interfaces/IAssetYield.sol";
 import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 /**
- * @title AssetLiability contract
+ * @title AssetYield contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev The contract that manages the asset liability of accounts.
+ * @dev The contract that manages the asset yield of accounts.
  */
-contract AssetLiability is
-    AssetLiabilityStorageLayout,
+contract AssetYield is
+    AssetYieldStorageLayout,
     AccessControlExtUpgradeable,
     PausableExtUpgradeable,
     RescuableUpgradeable,
     UUPSExtUpgradeable,
     Versionable,
-    IAssetLiability
+    IAssetYield
 {
     // ------------------ Constructor ----------------------------- //
 
@@ -61,7 +61,7 @@ contract AssetLiability is
         __PausableExt_init_unchained(OWNER_ROLE);
         __Rescuable_init_unchained(OWNER_ROLE);
         __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __AssetLiability_init_unchained(underlyingToken_);
+        __AssetYield_init_unchained(underlyingToken_);
     }
 
     /**
@@ -73,23 +73,23 @@ contract AssetLiability is
      *
      * @param underlyingToken_ The address of the token to set as the underlying one.
      */
-    function __AssetLiability_init_unchained(address underlyingToken_) internal {
+    function __AssetYield_init_unchained(address underlyingToken_) internal {
         _setRoleAdmin(OWNER_ROLE, OWNER_ROLE);
         _setRoleAdmin(MINTER_ROLE, OWNER_ROLE);
         _setRoleAdmin(MANAGER_ROLE, OWNER_ROLE);
         _grantRole(OWNER_ROLE, _msgSender());
 
         if (underlyingToken_ == address(0)) {
-            revert AssetLiability_UnderlyingTokenAddressZero();
+            revert AssetYield_UnderlyingTokenAddressZero();
         }
 
-        _getAssetLiabilityStorage().underlyingToken = underlyingToken_;
+        _getAssetYieldStorage().underlyingToken = underlyingToken_;
     }
 
     // ------------------ Transactional functions ----------------- //
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      *
      * @dev Requirements:
      *
@@ -97,7 +97,7 @@ contract AssetLiability is
      * - The caller must have the {MINTER_ROLE} role.
      */
     function mintYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        AssetYieldStorage storage $ = _getAssetYieldStorage();
 
         IERC20Mintable($.underlyingToken).mint(address(this), amount);
         $.totalYieldSupply += amount;
@@ -106,7 +106,7 @@ contract AssetLiability is
     }
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      *
      * @dev Requirements:
      *
@@ -115,7 +115,7 @@ contract AssetLiability is
      * - The contract must have sufficient token balance to cover the burn.
      */
     function burnYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        AssetYieldStorage storage $ = _getAssetYieldStorage();
 
         IERC20Mintable($.underlyingToken).burn(amount);
         $.totalYieldSupply -= amount;
@@ -124,14 +124,14 @@ contract AssetLiability is
     }
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      */
     function totalYieldSupply() external view returns (uint256) {
-        return _getAssetLiabilityStorage().totalYieldSupply;
+        return _getAssetYieldStorage().totalYieldSupply;
     }
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      *
      * @dev Requirements:
      *
@@ -150,10 +150,10 @@ contract AssetLiability is
         uint256 length = accounts.length;
 
         if (length != amounts.length) {
-            revert AssetLiability_AccountsAndAmountsLengthMismatch();
+            revert AssetYield_AccountsAndAmountsLengthMismatch();
         }
 
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        AssetYieldStorage storage $ = _getAssetYieldStorage();
 
         for (uint256 i = 0; i < length; ) {
             _transferWithLiability($, accounts[i], amounts[i]);
@@ -164,7 +164,7 @@ contract AssetLiability is
     }
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      *
      * @dev Requirements:
      *
@@ -183,10 +183,10 @@ contract AssetLiability is
         uint256 length = accounts.length;
 
         if (length != amounts.length) {
-            revert AssetLiability_AccountsAndAmountsLengthMismatch();
+            revert AssetYield_AccountsAndAmountsLengthMismatch();
         }
 
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+        AssetYieldStorage storage $ = _getAssetYieldStorage();
         uint256 totalAmount = 0;
 
         for (uint256 i = 0; i < length; ) {
@@ -203,30 +203,30 @@ contract AssetLiability is
     // ------------------ View functions -------------------------- //
 
     /**
-     * @inheritdoc IAssetLiabilityConfiguration
+     * @inheritdoc IAssetYieldConfiguration
      */
     function underlyingToken() external view returns (address) {
-        return _getAssetLiabilityStorage().underlyingToken;
+        return _getAssetYieldStorage().underlyingToken;
     }
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      */
     function liabilityOf(address account) external view returns (uint256) {
-        return _getAssetLiabilityStorage().liabilities[account].amount;
+        return _getAssetYieldStorage().liabilities[account].amount;
     }
 
     /**
-     * @inheritdoc IAssetLiabilityPrimary
+     * @inheritdoc IAssetYieldPrimary
      */
     function totalLiability() external view returns (uint256) {
-        return _getAssetLiabilityStorage().totalLiability;
+        return _getAssetYieldStorage().totalLiability;
     }
 
     // ------------------ Pure functions -------------------------- //
 
-    /// @inheritdoc IAssetLiability
-    function proveAssetLiability() external pure {}
+    /// @inheritdoc IAssetYield
+    function proveAssetYield() external pure {}
 
     // ------------------ Internal functions ---------------------- //
 
@@ -245,7 +245,7 @@ contract AssetLiability is
      *
      * Emits a {LiabilityUpdated} event (via the _increaseLiability function).
      */
-    function _transferWithLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
+    function _transferWithLiability(AssetYieldStorage storage $, address account, uint256 amount) internal {
         _increaseLiability($, account, amount);
         SafeERC20.safeTransfer(IERC20($.underlyingToken), account, amount);
     }
@@ -264,7 +264,7 @@ contract AssetLiability is
      *
      * Emits a {LiabilityUpdated} event.
      */
-    function _increaseLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
+    function _increaseLiability(AssetYieldStorage storage $, address account, uint256 amount) internal {
         _checkLiabilityOperationParameters(account, amount);
 
         Liability storage liability = $.liabilities[account];
@@ -292,14 +292,14 @@ contract AssetLiability is
      *
      * Emits a {LiabilityUpdated} event.
      */
-    function _decreaseLiability(AssetLiabilityStorage storage $, address account, uint256 amount) internal {
+    function _decreaseLiability(AssetYieldStorage storage $, address account, uint256 amount) internal {
         _checkLiabilityOperationParameters(account, amount);
 
         Liability storage liability = $.liabilities[account];
         uint256 oldLiability = liability.amount;
 
         if (amount > oldLiability) {
-            revert AssetLiability_DecreaseAmountExcess();
+            revert AssetYield_DecreaseAmountExcess();
         }
 
         // Safe to use unchecked here because:
@@ -322,15 +322,15 @@ contract AssetLiability is
      */
     function _checkLiabilityOperationParameters(address account, uint256 amount) internal pure {
         if (account == address(0)) {
-            revert AssetLiability_AccountAddressZero();
+            revert AssetYield_AccountAddressZero();
         }
 
         if (amount == 0) {
-            revert AssetLiability_AmountZero();
+            revert AssetYield_AmountZero();
         }
 
         if (amount > type(uint64).max) {
-            revert AssetLiability_AmountOverflow();
+            revert AssetYield_AmountOverflow();
         }
     }
 
@@ -340,13 +340,13 @@ contract AssetLiability is
      * Requirements:
      *
      * - The caller must have the {OWNER_ROLE} role.
-     * - The new implementation address must be a valid AssetLiability contract.
+     * - The new implementation address must be a valid AssetYield contract.
      *
      * @param newImplementation The address of the new implementation.
      */
     function _validateUpgrade(address newImplementation) internal view override onlyRole(OWNER_ROLE) {
-        try IAssetLiability(newImplementation).proveAssetLiability() {} catch {
-            revert AssetLiability_ImplementationAddressInvalid();
+        try IAssetYield(newImplementation).proveAssetYield() {} catch {
+            revert AssetYield_ImplementationAddressInvalid();
         }
     }
 }

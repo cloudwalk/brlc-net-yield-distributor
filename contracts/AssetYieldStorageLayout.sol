@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.18;
 
-import { IAssetLiabilityTypes } from "./interfaces/IAssetLiabilityTypes.sol";
+import { IAssetYieldTypes } from "./interfaces/IAssetYieldTypes.sol";
 
 /**
- * @title AssetLiabilityStorageLayout contract
+ * @title AssetYieldStorageLayout contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the storage layout for the asset liability contract.
+ * @dev Defines the storage layout for the asset yield contract.
  */
-abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
+abstract contract AssetYieldStorageLayout is IAssetYieldTypes {
     // ------------------ Constants ------------------------------- //
 
     /// @dev The role of this contract owner.
@@ -25,10 +25,10 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
 
     /*
      * ERC-7201: Namespaced Storage Layout
-     * keccak256(abi.encode(uint256(keccak256("cloudwalk.storage.AssetLiability")) - 1)) & ~bytes32(uint256(0xff))
+     * keccak256(abi.encode(uint256(keccak256("cloudwalk.storage.AssetYield")) - 1)) & ~bytes32(uint256(0xff))
      */
-    bytes32 private constant ASSET_LIABILITY_STORAGE_LOCATION =
-        0x001934aaca09350fe8ff6b8c7d5f6fad3d991d48c50551d7ada75910817eec00;
+    bytes32 private constant ASSET_YIELD_STORAGE_LOCATION =
+        0x04649658641e694a55129f42214ab5272db9dc0c1f7e0cb89509224043caec00;
 
     /**
      * @dev Defines the contract storage structure.
@@ -40,9 +40,9 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
      * - totalLiability ------- The sum of all liabilities.
      * - liabilities ---------- The mapping of a liability for a given account.
      *
-     * @custom:storage-location erc7201:cloudwalk.storage.AssetLiability
+     * @custom:storage-location erc7201:cloudwalk.storage.AssetYield
      */
-    struct AssetLiabilityStorage {
+    struct AssetYieldStorage {
         // Slot 1
         address underlyingToken;
         // uint96 __reserved1; // Reserved for future use until the end of the storage slot
@@ -59,9 +59,9 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
 
     // ------------------ Internal functions ---------------------- //
 
-    /// @dev Returns the storage slot location for the `AssetLiabilityStorage` struct.
-    function _getAssetLiabilityStorage() internal pure returns (AssetLiabilityStorage storage data) {
-        bytes32 position = ASSET_LIABILITY_STORAGE_LOCATION;
+    /// @dev Returns the storage slot location for the `AssetYieldStorage` struct.
+    function _getAssetYieldStorage() internal pure returns (AssetYieldStorage storage data) {
+        bytes32 position = ASSET_YIELD_STORAGE_LOCATION;
         assembly {
             data.slot := position
         }

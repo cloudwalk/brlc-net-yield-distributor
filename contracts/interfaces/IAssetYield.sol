@@ -3,11 +3,11 @@
 pragma solidity ^0.8.4;
 
 /**
- * @title IAssetLiabilityPrimary interface
+ * @title IAssetYieldPrimary interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the primary interface of the asset liability contract.
+ * @dev Defines the primary interface of the asset yield contract.
  */
-interface IAssetLiabilityPrimary {
+interface IAssetYieldPrimary {
     // ------------------ Events----------------------------------- //
 
     /**
@@ -104,11 +104,11 @@ interface IAssetLiabilityPrimary {
 }
 
 /**
- * @title IAssetLiabilityConfiguration interface
+ * @title IAssetYieldConfiguration interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the configuration interface of the asset liability contract.
+ * @dev Defines the configuration interface of the asset yield contract.
  */
-interface IAssetLiabilityConfiguration {
+interface IAssetYieldConfiguration {
     // ------------------ View functions -------------------------- //
 
     /**
@@ -120,44 +120,44 @@ interface IAssetLiabilityConfiguration {
 }
 
 /**
- * @title IAssetLiabilityErrors interface
+ * @title IAssetYieldErrors interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the errors of the asset liability contract.
+ * @dev Defines the errors of the asset yield contract.
  */
-interface IAssetLiabilityErrors {
+interface IAssetYieldErrors {
     /// @dev Thrown if the implementation address is invalid during an upgrade.
-    error AssetLiability_ImplementationAddressInvalid();
+    error AssetYield_ImplementationAddressInvalid();
 
     /// @dev Thrown if the underlying token address provided is zero.
-    error AssetLiability_UnderlyingTokenAddressZero();
+    error AssetYield_UnderlyingTokenAddressZero();
 
     /// @dev Thrown if the accounts and amounts arrays have different lengths.
-    error AssetLiability_AccountsAndAmountsLengthMismatch();
+    error AssetYield_AccountsAndAmountsLengthMismatch();
 
     /// @dev Thrown if the address of the account is zero.
-    error AssetLiability_AccountAddressZero();
+    error AssetYield_AccountAddressZero();
 
     /// @dev Thrown if the amount is zero when its not allowed.
-    error AssetLiability_AmountZero();
+    error AssetYield_AmountZero();
 
     /// @dev Thrown if the decrease amount exceeds the current liability of an account.
-    error AssetLiability_DecreaseAmountExcess();
+    error AssetYield_DecreaseAmountExcess();
 
     /// @dev Thrown if the amount is too large to be stored in a uint64.
-    error AssetLiability_AmountOverflow();
+    error AssetYield_AmountOverflow();
 }
 
 /**
- * @title IAssetLiability interface
+ * @title IAssetYield interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev The full interface of the asset liability contract.
+ * @dev The full interface of the asset yield contract.
  */
-interface IAssetLiability is IAssetLiabilityPrimary, IAssetLiabilityConfiguration, IAssetLiabilityErrors {
+interface IAssetYield is IAssetYieldPrimary, IAssetYieldConfiguration, IAssetYieldErrors {
     /**
-     * @dev Proves the contract is the asset liability one.
+     * @dev Proves the contract is the asset yield one.
      *
      * It is used for simple contract compliance checks, e.g. during an upgrade.
      * This avoids situations where a wrong contract address is specified by mistake.
      */
-    function proveAssetLiability() external pure;
+    function proveAssetYield() external pure;
 }
