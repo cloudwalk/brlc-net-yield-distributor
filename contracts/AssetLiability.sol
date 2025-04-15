@@ -102,7 +102,7 @@ contract AssetLiability is
             revert AssetLiability_TreasuryAddressAlreadySet();
         }
 
-        emit TreasuryUpdated(operationalTreasury_, $.operationalTreasury);
+        emit OperationalTreasuryUpdated(operationalTreasury_, $.operationalTreasury);
 
         $.operationalTreasury = operationalTreasury_;
     }

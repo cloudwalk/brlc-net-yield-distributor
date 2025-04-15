@@ -19,7 +19,7 @@ const ROLES = {
 
 const EVENTS = {
   LiabilityUpdated: "LiabilityUpdated",
-  TreasuryUpdated: "TreasuryUpdated"
+  OperationalTreasuryUpdated: "OperationalTreasuryUpdated"
 };
 
 const ERRORS = {
@@ -216,13 +216,13 @@ describe("Contract 'AssetLiability'", async () => {
 
       // Check it can be set to a non-zero address
       await expect(assetLiability.setOperationalTreasury(treasury.address))
-        .to.emit(assetLiability, EVENTS.TreasuryUpdated)
+        .to.emit(assetLiability, EVENTS.OperationalTreasuryUpdated)
         .withArgs(treasury.address, ADDRESS_ZERO);
       expect(await assetLiability.operationalTreasury()).to.eq(treasury.address);
 
       // Check it can be set to a zero address
       await expect(assetLiability.setOperationalTreasury(ADDRESS_ZERO))
-        .to.emit(assetLiability, EVENTS.TreasuryUpdated)
+        .to.emit(assetLiability, EVENTS.OperationalTreasuryUpdated)
         .withArgs(ADDRESS_ZERO, treasury.address);
       expect(await assetLiability.operationalTreasury()).to.eq(ADDRESS_ZERO);
     });

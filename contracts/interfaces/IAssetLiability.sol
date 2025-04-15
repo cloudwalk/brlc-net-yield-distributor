@@ -89,7 +89,7 @@ interface IAssetLiabilityConfiguration {
      * @param newTreasury The new address of the operational treasury.
      * @param oldTreasury The previous address of the operational treasury.
      */
-    event TreasuryUpdated(address indexed newTreasury, address indexed oldTreasury);
+    event OperationalTreasuryUpdated(address indexed newTreasury, address indexed oldTreasury);
 
     // ------------------ Transactional functions ----------------- //
 
@@ -98,7 +98,7 @@ interface IAssetLiabilityConfiguration {
      *
      * This function can be called only by an account with a special role.
      *
-     * Emits a {TreasuryUpdated} event.
+     * Emits a {OperationalTreasuryUpdated} event.
      *
      * @param operationalTreasury_ The address of the operational treasury.
      */
