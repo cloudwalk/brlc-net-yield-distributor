@@ -54,7 +54,7 @@ interface IAssetLiabilityPrimary {
     function burnYield(uint256 amount) external;
 
     /**
-     * @dev Transfers a specified amount of tokens from the operational treasury to an account and
+     * @dev Transfers a specified amount of tokens from the contract to an account and
      * increases the liability of the account.
      *
      * This function can be called only by an account with a special role.
@@ -109,37 +109,7 @@ interface IAssetLiabilityPrimary {
  * @dev Defines the configuration interface of the asset liability contract.
  */
 interface IAssetLiabilityConfiguration {
-    // ------------------ Events ---------------------------------- //
-
-    /**
-     * @dev Emitted when the address of the operational treasury has been updated.
-     *
-     * @param newTreasury The new address of the operational treasury.
-     * @param oldTreasury The previous address of the operational treasury.
-     */
-    event OperationalTreasuryUpdated(address indexed newTreasury, address indexed oldTreasury);
-
-    // ------------------ Transactional functions ----------------- //
-
-    /**
-     * @dev Sets the address of the operational treasury.
-     *
-     * This function can be called only by an account with a special role.
-     *
-     * Emits a {OperationalTreasuryUpdated} event.
-     *
-     * @param operationalTreasury_ The address of the operational treasury.
-     */
-    function setOperationalTreasury(address operationalTreasury_) external;
-
     // ------------------ View functions -------------------------- //
-
-    /**
-     * @dev Returns the address of the operational treasury.
-     *
-     * @return The address of the operational treasury.
-     */
-    function operationalTreasury() external view returns (address);
 
     /**
      * @dev Returns the address of the underlying token contract.
@@ -160,9 +130,6 @@ interface IAssetLiabilityErrors {
 
     /// @dev Thrown if the underlying token address provided is zero.
     error AssetLiability_UnderlyingTokenAddressZero();
-
-    /// @dev Thrown if the treasury address provided is already set.
-    error AssetLiability_TreasuryAddressAlreadySet();
 
     /// @dev Thrown if the accounts and amounts arrays have different lengths.
     error AssetLiability_AccountsAndAmountsLengthMismatch();

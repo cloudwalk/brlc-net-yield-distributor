@@ -36,7 +36,6 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
      * The fields:
      *
      * - underlyingToken ------ The address of the underlying token contract.
-     * - operationalTreasury -- The address of the operational treasury.
      * - totalYieldSupply ----- The total supply of yield asset.
      * - totalLiability ------- The sum of all liabilities.
      * - liabilities ---------- The mapping of a liability for a given account.
@@ -49,16 +48,12 @@ abstract contract AssetLiabilityStorageLayout is IAssetLiabilityTypes {
         // uint96 __reserved1; // Reserved for future use until the end of the storage slot
 
         // Slot 2
-        address operationalTreasury;
-        // uint96 __reserved2; // Reserved for future use until the end of the storage slot
-
-        // Slot 3
         uint256 totalYieldSupply;
 
-        // Slot 4
+        // Slot 3
         uint256 totalLiability;
 
-        // Slot 5
+        // Slot 4
         mapping(address account => Liability liability) liabilities;
     }
 

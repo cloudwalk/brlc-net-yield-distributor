@@ -20,7 +20,6 @@ const ROLES = {
 
 const EVENTS = {
   LiabilityUpdated: "LiabilityUpdated",
-  OperationalTreasuryUpdated: "OperationalTreasuryUpdated",
   YieldMinted: "YieldMinted",
   YieldBurned: "YieldBurned"
 };
@@ -30,7 +29,6 @@ const ERRORS = {
   AssetLiability_AccessControlUnauthorizedAccount: "AccessControlUnauthorizedAccount",
   AssetLiability_ImplementationAddressInvalid: "AssetLiability_ImplementationAddressInvalid",
   AssetLiability_UnderlyingTokenAddressZero: "AssetLiability_UnderlyingTokenAddressZero",
-  AssetLiability_TreasuryAddressAlreadySet: "AssetLiability_TreasuryAddressAlreadySet",
   AssetLiability_AccountsAndAmountsLengthMismatch: "AssetLiability_AccountsAndAmountsLengthMismatch",
   AssetLiability_AccountAddressZero: "AssetLiability_AccountAddressZero",
   AssetLiability_AmountZero: "AssetLiability_AmountZero",
@@ -72,14 +70,13 @@ describe("Contract 'AssetLiability'", async () => {
   let deployer: HardhatEthersSigner;
   let minter: HardhatEthersSigner;
   let manager: HardhatEthersSigner;
-  let treasury: HardhatEthersSigner;
   let stranger: HardhatEthersSigner;
   let user: HardhatEthersSigner;
   let users: HardhatEthersSigner[];
 
   before(async () => {
     let moreUsers: HardhatEthersSigner[];
-    [deployer, minter, manager, treasury, stranger, user, ...moreUsers] = await ethers.getSigners();
+    [deployer, minter, manager, stranger, user, ...moreUsers] = await ethers.getSigners();
     users = [user, ...moreUsers];
 
     // The contract factories with the explicitly specified deployer account
@@ -124,13 +121,6 @@ describe("Contract 'AssetLiability'", async () => {
 
     await proveTx(assetLiability.grantRole(ROLES.MINTER_ROLE, minter.address));
     await proveTx(assetLiability.grantRole(ROLES.MANAGER_ROLE, manager.address));
-    await proveTx(assetLiability.setOperationalTreasury(treasury.address));
-
-    // Mint initial balances
-    await proveTx(tokenMock.mint(treasury.address, BALANCE_INITIAL));
-
-    // Approvals
-    await proveTx(connect(tokenMock, treasury).approve(getAddress(assetLiability), ALLOWANCE_MAX));
 
     return fixture;
   }
@@ -162,8 +152,8 @@ describe("Contract 'AssetLiability'", async () => {
       expect(await assetLiability.hasRole(ROLES.MANAGER_ROLE, deployer.address)).to.equal(false);
       expect(await assetLiability.hasRole(ROLES.PAUSER_ROLE, deployer.address)).to.equal(false);
 
-      // Default values for treasury and total liability
-      expect(await assetLiability.operationalTreasury()).to.equal(ADDRESS_ZERO);
+      // Default values for total yield supply and total liability
+      expect(await assetLiability.totalYieldSupply()).to.equal(0);
       expect(await assetLiability.totalLiability()).to.equal(0);
     });
 
@@ -214,53 +204,6 @@ describe("Contract 'AssetLiability'", async () => {
       const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
       const assetLiabilityVersion = await assetLiability.$__VERSION();
       checkEquality(assetLiabilityVersion, EXPECTED_VERSION);
-    });
-  });
-
-  describe("Function 'setOperationalTreasury()'", async () => {
-    it("Executes as expected and emits the correct event", async () => {
-      const { assetLiability } = await setUpFixture(deployContracts);
-
-      // Check it can be set to a non-zero address
-      await expect(assetLiability.setOperationalTreasury(treasury.address))
-        .to.emit(assetLiability, EVENTS.OperationalTreasuryUpdated)
-        .withArgs(treasury.address, ADDRESS_ZERO);
-      expect(await assetLiability.operationalTreasury()).to.eq(treasury.address);
-
-      // Check it can be set to a zero address
-      await expect(assetLiability.setOperationalTreasury(ADDRESS_ZERO))
-        .to.emit(assetLiability, EVENTS.OperationalTreasuryUpdated)
-        .withArgs(ADDRESS_ZERO, treasury.address);
-      expect(await assetLiability.operationalTreasury()).to.eq(ADDRESS_ZERO);
-    });
-
-    it("Is reverted if caller does not have the owner role", async () => {
-      const { assetLiability } = await setUpFixture(deployContracts);
-
-      await expect(connect(assetLiability, stranger).setOperationalTreasury(treasury.address))
-        .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
-        .withArgs(stranger.address, ROLES.OWNER_ROLE);
-
-      // An account with the manager role cannot do that too
-      await proveTx(assetLiability.grantRole(ROLES.MANAGER_ROLE, manager.address));
-      await expect(connect(assetLiability, manager).setOperationalTreasury(treasury.address))
-        .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
-        .withArgs(manager.address, ROLES.OWNER_ROLE);
-    });
-
-    it("Is reverted if the new treasury address is the same as the previous one", async () => {
-      const { assetLiability } = await setUpFixture(deployContracts);
-
-      // Check for the zero treasury address first
-      await expect(assetLiability.setOperationalTreasury(ADDRESS_ZERO))
-        .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_TreasuryAddressAlreadySet);
-
-      // Set the treasury
-      await proveTx(assetLiability.setOperationalTreasury(treasury.address));
-
-      // Now try to set it to the same address
-      await expect(assetLiability.setOperationalTreasury(treasury.address))
-        .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_TreasuryAddressAlreadySet);
     });
   });
 

@@ -89,26 +89,6 @@ contract AssetLiability is
     // ------------------ Transactional functions ----------------- //
 
     /**
-     * @inheritdoc IAssetLiabilityConfiguration
-     *
-     * @dev Requirements:
-     *
-     * - The caller must have the {OWNER_ROLE} role.
-     * - The new treasury address must not be the same as currently set.
-     */
-    function setOperationalTreasury(address operationalTreasury_) external onlyRole(OWNER_ROLE) {
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
-
-        if (operationalTreasury_ == $.operationalTreasury) {
-            revert AssetLiability_TreasuryAddressAlreadySet();
-        }
-
-        emit OperationalTreasuryUpdated(operationalTreasury_, $.operationalTreasury);
-
-        $.operationalTreasury = operationalTreasury_;
-    }
-
-    /**
      * @inheritdoc IAssetLiabilityPrimary
      *
      * @dev Requirements:
@@ -224,13 +204,6 @@ contract AssetLiability is
     }
 
     /**
-     * @inheritdoc IAssetLiabilityConfiguration
-     */
-    function operationalTreasury() external view returns (address) {
-        return _getAssetLiabilityStorage().operationalTreasury;
-    }
-
-    /**
      * @inheritdoc IAssetLiabilityPrimary
      */
     function liabilityOf(address account) external view returns (uint256) {
@@ -259,7 +232,7 @@ contract AssetLiability is
      * - The account address must not be zero.
      * - The amount must not be zero.
      * - The amount must not exceed the maximum uint64 value.
-     * - The treasury must have sufficient tokens and allowance.
+     * - The contract must have sufficient tokens to transfer.
      *
      * @param account The account to transfer tokens to.
      * @param amount The amount of tokens to transfer.
