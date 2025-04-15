@@ -38,8 +38,6 @@ const ERRORS = {
 };
 
 const ADDRESS_ZERO = ethers.ZeroAddress;
-const ALLOWANCE_MAX = ethers.MaxUint256;
-const BALANCE_INITIAL = 1000_000_000_000n;
 
 const LIABILITY_AMOUNT = 12_345_678n;
 const LIABILITY_AMOUNTS: bigint[] = [
@@ -132,45 +130,54 @@ describe("Contract 'AssetLiability'", async () => {
 
   describe("Function 'initialize()'", async () => {
     it("Configures the contract as expected", async () => {
+      // Setup
       const { assetLiability, tokenMock } = await setUpFixture(deployContracts);
 
-      // The underlying token contract address
+      // Verify underlying token address
       expect(await assetLiability.underlyingToken()).to.equal(getAddress(tokenMock));
 
-      // Role hashes
+      // Verify role hashes
       expect(await assetLiability.OWNER_ROLE()).to.equal(ROLES.OWNER_ROLE);
       expect(await assetLiability.MANAGER_ROLE()).to.equal(ROLES.MANAGER_ROLE);
+      expect(await assetLiability.MINTER_ROLE()).to.equal(ROLES.MINTER_ROLE);
       expect(await assetLiability.PAUSER_ROLE()).to.equal(ROLES.PAUSER_ROLE);
 
-      // The role admins
+      // Verify role admins
       expect(await assetLiability.getRoleAdmin(ROLES.OWNER_ROLE)).to.equal(ROLES.OWNER_ROLE);
       expect(await assetLiability.getRoleAdmin(ROLES.MANAGER_ROLE)).to.equal(ROLES.OWNER_ROLE);
+      expect(await assetLiability.getRoleAdmin(ROLES.MINTER_ROLE)).to.equal(ROLES.OWNER_ROLE);
       expect(await assetLiability.getRoleAdmin(ROLES.PAUSER_ROLE)).to.equal(ROLES.OWNER_ROLE);
 
-      // The deployer should have the owner role, but not the other roles
+      // Verify deployer role assignments
       expect(await assetLiability.hasRole(ROLES.OWNER_ROLE, deployer.address)).to.equal(true);
       expect(await assetLiability.hasRole(ROLES.MANAGER_ROLE, deployer.address)).to.equal(false);
+      expect(await assetLiability.hasRole(ROLES.MINTER_ROLE, deployer.address)).to.equal(false);
       expect(await assetLiability.hasRole(ROLES.PAUSER_ROLE, deployer.address)).to.equal(false);
 
-      // Default values for total yield supply and total liability
+      // Verify initial state values
       expect(await assetLiability.totalYieldSupply()).to.equal(0);
       expect(await assetLiability.totalLiability()).to.equal(0);
     });
 
-    it("Is reverted if it is called a second time", async () => {
+    it("Is reverted if called a second time", async () => {
+      // Setup
       const { assetLiability, tokenMock } = await setUpFixture(deployContracts);
+      
+      // Verify error on second initialization
       await expect(
         assetLiability.initialize(getAddress(tokenMock))
       ).to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_InvalidInitialization);
     });
 
-    it("Is reverted if the passed token address is zero", async () => {
+    it("Is reverted if passed token address is zero", async () => {
+      // Setup contract without initialization
       const anotherAssetLiabilityContract: Contract = await upgrades.deployProxy(
         assetLiabilityFactory,
         [],
         { initializer: false }
       ) as Contract;
 
+      // Verify error when initializing with zero address
       await expect(
         anotherAssetLiabilityContract.initialize(ADDRESS_ZERO)
       ).to.be.revertedWithCustomError(assetLiabilityFactory, ERRORS.AssetLiability_UnderlyingTokenAddressZero);
@@ -179,21 +186,28 @@ describe("Contract 'AssetLiability'", async () => {
 
   describe("Function 'upgradeToAndCall()'", async () => {
     it("Executes as expected", async () => {
+      // Setup
       const { assetLiability } = await setUpFixture(deployContracts);
+      
+      // Execute and verify upgrade
       await checkContractUupsUpgrading(assetLiability, assetLiabilityFactory);
     });
 
-    it("Is reverted if the caller does not have the owner role", async () => {
+    it("Is reverted if caller lacks `OWNER_ROLE`", async () => {
+      // Setup
       const { assetLiability } = await setUpFixture(deployContracts);
 
+      // Verify error when non-owner tries to upgrade
       await expect(connect(assetLiability, stranger).upgradeToAndCall(getAddress(assetLiability), "0x"))
         .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
         .withArgs(stranger.address, ROLES.OWNER_ROLE);
     });
 
-    it("Is reverted if the provided implementation address does not belong to an AssetLiability contract", async () => {
+    it("Is reverted if implementation address is invalid", async () => {
+      // Setup
       const { assetLiability, tokenMock } = await setUpFixture(deployContracts);
 
+      // Verify error when using invalid implementation
       await expect(assetLiability.upgradeToAndCall(getAddress(tokenMock), "0x"))
         .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_ImplementationAddressInvalid);
     });
@@ -201,7 +215,10 @@ describe("Contract 'AssetLiability'", async () => {
 
   describe("Function '$__VERSION()'", async () => {
     it("Returns expected values", async () => {
+      // Setup
       const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+      
+      // Execute and verify version
       const assetLiabilityVersion = await assetLiability.$__VERSION();
       checkEquality(assetLiabilityVersion, EXPECTED_VERSION);
     });
@@ -209,33 +226,35 @@ describe("Contract 'AssetLiability'", async () => {
 
   describe("Function 'transferWithLiability()'", async () => {
     describe("Executes as expected if", async () => {
-      it("The transfer is for a single account", async () => {
+      it("Transfer is for a single account", async () => {
         const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const amount = LIABILITY_AMOUNT;
         const account = user.address;
 
-        // Mint yield to the contract
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(amount * 2n));
 
+        // Execute
         const tx = connect(assetLiability, manager).transferWithLiability([account], [amount]);
 
-        // First check the event emission
+        // Verify event emission
         await expect(tx)
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(account, amount, 0);
 
-        // Then check the token balances change
+        // Verify token balance changes
         await expect(tx).to.changeTokenBalances(
           tokenMock,
           [getAddress(assetLiability), account],
           [-amount, amount]
         );
 
+        // Verify final state
         expect(await assetLiability.liabilityOf(account)).to.equal(amount);
         expect(await assetLiability.totalLiability()).to.equal(amount);
       });
 
-      it("The transfer is for multiple accounts, including 2 times for the first one", async () => {
+      it("Transfer is for multiple accounts, including duplicates", async () => {
         const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const transferCount = 4;
         const accounts = users.slice(0, transferCount - 1).map(user => user.address);
@@ -244,11 +263,13 @@ describe("Contract 'AssetLiability'", async () => {
         amounts.push(LIABILITY_AMOUNTS[transferCount - 1]);
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
 
-        // Mint yield to the contract
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(totalAmount * 2n));
 
-        // Check that the function emits the correct events
+        // Execute
         const tx = await connect(assetLiability, manager).transferWithLiability(accounts, amounts);
+
+        // Verify events
         for (let i = 0; i < accounts.length - 1; ++i) {
           await expect(tx)
             .to.emit(assetLiability, EVENTS.LiabilityUpdated)
@@ -258,13 +279,13 @@ describe("Contract 'AssetLiability'", async () => {
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(accounts[transferCount - 1], amounts[transferCount - 1] + amounts[0], amounts[0]);
 
-        // Check the final state
+        // Verify final state
         expect(await assetLiability.liabilityOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
         expect(await assetLiability.liabilityOf(accounts[1])).to.equal(amounts[1]);
         expect(await assetLiability.liabilityOf(accounts[2])).to.equal(amounts[2]);
         expect(await assetLiability.totalLiability()).to.equal(totalAmount);
 
-        // Check the token balance changes
+        // Verify token balance changes
         await expect(tx).to.changeTokenBalances(
           tokenMock,
           [getAddress(assetLiability), accounts[0], accounts[1], accounts[2]],
@@ -272,44 +293,50 @@ describe("Contract 'AssetLiability'", async () => {
         );
       });
 
-      it("The transfer is for the zero number of accounts", async () => {
+      it("Transfer is for zero accounts", async () => {
         const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
-        // Mint yield to the contract
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(LIABILITY_AMOUNT));
 
+        // Execute
         const tx = connect(assetLiability, manager).transferWithLiability([], []);
 
-        // First check there is no event emission
+        // Verify no events emitted
         await expect(tx).not.to.emit(assetLiability, EVENTS.LiabilityUpdated);
 
-        // Then check there is no token balance change
+        // Verify no token balance changes
         await expect(tx).to.changeTokenBalances(
           tokenMock,
           [getAddress(assetLiability)],
           [0]
         );
 
+        // Verify final state
         expect(await assetLiability.totalLiability()).to.equal(0);
       });
     });
 
     describe("Is reverted if", async () => {
-      it("The contract is paused", async () => {
+      it("Contract is paused", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(LIABILITY_AMOUNT * 2n));
         await pauseContract(assetLiability);
 
+        // Verify error
         await expect(connect(assetLiability, manager).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
       });
 
-      it("The caller lacks MANAGER_ROLE", async () => {
+      it("Caller lacks `MANAGER_ROLE`", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(LIABILITY_AMOUNT * 2n));
 
+        // Verify errors for different callers
         await expect(connect(assetLiability, stranger).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
@@ -319,24 +346,26 @@ describe("Contract 'AssetLiability'", async () => {
           .withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
 
-      it("The contract has insufficient balance", async () => {
+      it("Contract has insufficient balance", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        // Mint a small amount of yield
+        // Setup - mint less than required
         const smallAmount = LIABILITY_AMOUNT / 2n;
         await proveTx(connect(assetLiability, minter).mintYield(smallAmount));
 
-        // Try to transfer more than available
+        // Verify error when attempting to transfer more than available
         await expect(
           connect(assetLiability, manager).transferWithLiability([user.address], [LIABILITY_AMOUNT])
         ).to.be.reverted;
       });
 
-      it("The arrays length mismatch", async () => {
+      it("Arrays length mismatch", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(LIABILITY_AMOUNT * 2n));
 
+        // Verify errors for different mismatch scenarios
         const accounts = [user.address, users[1].address];
         const amounts = [LIABILITY_AMOUNT];
 
@@ -347,54 +376,56 @@ describe("Contract 'AssetLiability'", async () => {
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
       });
 
-      it("One of the provided accounts addresses is zero", async () => {
+      it("Account address is zero", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(LIABILITY_AMOUNT * 2n));
-
         const accounts = [user.address, ADDRESS_ZERO];
         const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT];
 
+        // Verify error
         await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountAddressZero);
       });
 
-      it("One of the provided amounts is zero", async () => {
+      it("Amount is zero", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(LIABILITY_AMOUNT * 2n));
-
         const accounts = [users[0].address, users[1].address];
         const amounts = [LIABILITY_AMOUNT, 0n];
 
+        // Verify error
         await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountZero);
       });
 
-      it("One of the provided amounts exceeds 64-bit unsigned integer", async () => {
+      it("Amount exceeds uint64 max value", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        // Mint a very large amount of yield
+        // Setup
         const largeAmount = maxUintForBits(64) * 2n;
         await proveTx(connect(assetLiability, minter).mintYield(largeAmount));
-
         const accounts = [users[0].address, users[1].address];
         const amounts = [LIABILITY_AMOUNT, maxUintForBits(64) + 1n];
 
+        // Verify error
         await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountOverflow);
       });
 
-      it("The result liability for an account exceeds 64-bit unsigned integer", async () => {
+      it("Result liability exceeds uint64 max value", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
-        // Mint a very large amount of yield
+        // Setup
         const largeAmount = maxUintForBits(64) * 2n;
         await proveTx(connect(assetLiability, minter).mintYield(largeAmount));
-
         const accounts = [user.address, user.address];
         const amounts = [1n, maxUintForBits(64)];
 
+        // Verify error
         await expect(connect(assetLiability, manager).transferWithLiability(accounts, amounts))
           .to.be.revertedWithPanic(0x11);
       });
@@ -403,39 +434,36 @@ describe("Contract 'AssetLiability'", async () => {
 
   describe("Function 'decreaseLiability()'", async () => {
     describe("Executes as expected if", async () => {
-      it("The decrease is for a single account's full liability", async () => {
+      it("Decreasing a single account's full liability", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const amount = LIABILITY_AMOUNT;
         const account = user.address;
 
-        // Mint yield to the contract
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(amount * 2n));
-
-        // First create a liability
         await proveTx(connect(assetLiability, manager).transferWithLiability([account], [amount]));
 
-        // Then decrease it
+        // Execute and verify event
         await expect(connect(assetLiability, manager).decreaseLiability([account], [amount]))
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(account, 0, amount);
 
+        // Verify final state
         expect(await assetLiability.liabilityOf(account)).to.equal(0);
         expect(await assetLiability.totalLiability()).to.equal(0);
       });
 
-      it("The decrease is for multiple accounts", async () => {
+      it("Decreasing liability for multiple accounts", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const accounts = users.slice(0, 3).map(user => user.address);
         const amounts = LIABILITY_AMOUNTS.slice(0, 3);
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
 
-        // Mint yield to the contract
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(totalAmount * 2n));
-
-        // First create liabilities
         await proveTx(connect(assetLiability, manager).transferWithLiability(accounts, amounts));
 
-        // Then decrease them
+        // Execute and verify events
         await expect(connect(assetLiability, manager).decreaseLiability(accounts, amounts))
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(accounts[0], 0, amounts[0])
@@ -444,67 +472,129 @@ describe("Contract 'AssetLiability'", async () => {
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(accounts[2], 0, amounts[2]);
 
+        // Verify final state
         expect(await assetLiability.liabilityOf(accounts[0])).to.equal(0);
         expect(await assetLiability.liabilityOf(accounts[1])).to.equal(0);
         expect(await assetLiability.liabilityOf(accounts[2])).to.equal(0);
         expect(await assetLiability.totalLiability()).to.equal(0);
       });
 
-      it("The decrease is partial", async () => {
+      it("Performing partial liability decrease", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const fullAmount = LIABILITY_AMOUNT;
         const partialAmount = LIABILITY_AMOUNT / 2n;
         const account = user.address;
 
-        // Mint yield to the contract
+        // Setup
         await proveTx(connect(assetLiability, minter).mintYield(fullAmount * 2n));
-
-        // First create a liability
         await proveTx(connect(assetLiability, manager).transferWithLiability([account], [fullAmount]));
 
-        // Then decrease partially
+        // Execute and verify event
         await expect(connect(assetLiability, manager).decreaseLiability([account], [partialAmount]))
           .to.emit(assetLiability, EVENTS.LiabilityUpdated)
           .withArgs(account, fullAmount - partialAmount, fullAmount);
 
+        // Verify final state
         expect(await assetLiability.liabilityOf(account)).to.equal(fullAmount - partialAmount);
         expect(await assetLiability.totalLiability()).to.equal(fullAmount - partialAmount);
       });
     });
 
+    describe("Updates `totalYieldSupply` correctly", async () => {
+      it("When decreasing liability for accounts sequentially", async () => {
+        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+
+        // Setup
+        const initialAmount = LIABILITY_AMOUNT * 2n;
+        await proveTx(connect(assetLiability, minter).mintYield(initialAmount));
+
+        const accounts = [users[0].address, users[1].address];
+        const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT / 2n];
+        const totalLiabilityAmount = amounts[0] + amounts[1];
+
+        await proveTx(connect(assetLiability, manager).transferWithLiability(accounts, amounts));
+
+        // Verify initial state after transfer
+        expect(await assetLiability.totalYieldSupply()).to.equal(initialAmount);
+        expect(await assetLiability.totalLiability()).to.equal(totalLiabilityAmount);
+        expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(initialAmount - totalLiabilityAmount);
+
+        // Execute first decrease and verify
+        await proveTx(connect(assetLiability, manager).decreaseLiability([accounts[0]], [amounts[0]]));
+        expect(await assetLiability.totalYieldSupply()).to.equal(initialAmount - amounts[0]);
+        expect(await assetLiability.totalLiability()).to.equal(amounts[1]);
+
+        // Execute second decrease and verify final state
+        await proveTx(connect(assetLiability, manager).decreaseLiability([accounts[1]], [amounts[1]]));
+        expect(await assetLiability.totalYieldSupply()).to.equal(initialAmount - totalLiabilityAmount);
+        expect(await assetLiability.totalLiability()).to.equal(0);
+      });
+
+      it("When decreasing liability for multiple accounts in batch", async () => {
+        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+
+        // Setup
+        const initialAmount = LIABILITY_AMOUNT * 6n;
+        await proveTx(connect(assetLiability, minter).mintYield(initialAmount));
+
+        const accounts = users.slice(0, 3).map(user => user.address);
+        const amounts = LIABILITY_AMOUNTS.slice(0, 3);
+        const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
+
+        await proveTx(connect(assetLiability, manager).transferWithLiability(accounts, amounts));
+
+        // Verify initial state
+        expect(await assetLiability.totalYieldSupply()).to.equal(initialAmount);
+        expect(await assetLiability.totalLiability()).to.equal(totalAmount);
+
+        // Execute batch decrease and verify final state
+        await proveTx(connect(assetLiability, manager).decreaseLiability(accounts, amounts));
+        expect(await assetLiability.totalYieldSupply()).to.equal(initialAmount - totalAmount);
+        expect(await assetLiability.totalLiability()).to.equal(0);
+      });
+    });
+
     describe("Is reverted if", async () => {
-      it("The arrays length mismatch", async () => {
+      it("Accounts and amounts arrays have different lengths", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const accounts = [user.address, users[1].address];
         const amounts = [LIABILITY_AMOUNT];
 
+        // Verify error
         await expect(connect(assetLiability, manager).decreaseLiability(accounts, amounts))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
       });
 
-      it("The caller lacks MANAGER_ROLE", async () => {
+      it("Caller lacks `MANAGER_ROLE`", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Verify error
         await expect(connect(assetLiability, stranger).decreaseLiability([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
       });
 
-      it("The account address is zero", async () => {
+      it("Account address is zero", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Verify error
         await expect(connect(assetLiability, manager).decreaseLiability([ADDRESS_ZERO], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountAddressZero);
       });
 
-      it("The amount is zero", async () => {
+      it("Amount is zero", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
 
+        // Verify error
         await expect(connect(assetLiability, manager).decreaseLiability([user.address], [0]))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountZero);
       });
 
-      it("The decrease amount exceeds current liability", async () => {
+      it("Decrease amount exceeds current liability", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const initialAmount = LIABILITY_AMOUNT;
         const excessAmount = initialAmount + 1n;
@@ -521,7 +611,7 @@ describe("Contract 'AssetLiability'", async () => {
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_DecreaseAmountExcess);
       });
 
-      it("The amount exceeds uint64 max", async () => {
+      it("Amount exceeds uint64 max value", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const maxUint64 = maxUintForBits(64);
         const overflowAmount = maxUint64 + 1n;
@@ -539,7 +629,7 @@ describe("Contract 'AssetLiability'", async () => {
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountOverflow);
       });
 
-      it("The contract is paused", async () => {
+      it("Contract is paused", async () => {
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
         const amount = LIABILITY_AMOUNT;
         const account = user.address;
@@ -561,29 +651,54 @@ describe("Contract 'AssetLiability'", async () => {
   });
 
   describe("Function 'mintYield()'", async () => {
-    it("Executes as expected and emits the correct event", async () => {
+    it("Mints tokens and emits correct event", async () => {
+      // Setup
       const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+      const amount = YIELD_AMOUNT;
 
-      // Check initial state
+      // Verify initial state
       expect(await assetLiability.totalYieldSupply()).to.equal(0);
       expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(0);
 
-      const amount = YIELD_AMOUNT;
-
-      // Mint yield and check event emission
+      // Execute and verify event
       await expect(connect(assetLiability, minter).mintYield(amount))
         .to.emit(assetLiability, EVENTS.YieldMinted)
         .withArgs(amount);
 
-      // Check state after minting
+      // Verify final state
       expect(await assetLiability.totalYieldSupply()).to.equal(amount);
       expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(amount);
     });
 
-    describe("Is reverted if", async () => {
-      it("The caller lacks MINTER_ROLE", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+    it("Allows multiple mint operations", async () => {
+      // Setup
+      const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+      const amount1 = YIELD_AMOUNT;
+      const amount2 = YIELD_AMOUNT * 2n;
+      const totalAmount = amount1 + amount2;
 
+      // Execute first mint and verify
+      await proveTx(connect(assetLiability, minter).mintYield(amount1));
+      expect(await assetLiability.totalYieldSupply()).to.equal(amount1);
+      expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(amount1);
+
+      // Execute second mint and verify event
+      await expect(connect(assetLiability, minter).mintYield(amount2))
+        .to.emit(assetLiability, EVENTS.YieldMinted)
+        .withArgs(amount2);
+
+      // Verify final state
+      expect(await assetLiability.totalYieldSupply()).to.equal(totalAmount);
+      expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(totalAmount);
+    });
+
+    describe("Is reverted if", async () => {
+      it("Caller lacks `MINTER_ROLE`", async () => {
+        // Setup
+        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        await proveTx(connect(assetLiability, minter).mintYield(YIELD_AMOUNT));
+
+        // Verify errors for different callers
         await expect(connect(assetLiability, stranger).mintYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MINTER_ROLE);
@@ -593,10 +708,13 @@ describe("Contract 'AssetLiability'", async () => {
           .withArgs(manager.address, ROLES.MINTER_ROLE);
       });
 
-      it("The contract is paused", async () => {
+      it("Contract is paused", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        await proveTx(connect(assetLiability, minter).mintYield(YIELD_AMOUNT));
         await pauseContract(assetLiability);
 
+        // Verify error
         await expect(connect(assetLiability, minter).mintYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
       });
@@ -604,32 +722,65 @@ describe("Contract 'AssetLiability'", async () => {
   });
 
   describe("Function 'burnYield()'", async () => {
-    it("Executes as expected and emits the correct event", async () => {
+    it("Burns tokens and emits correct event", async () => {
+      // Setup
       const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const mintAmount = YIELD_AMOUNT * 2n;
       const burnAmount = YIELD_AMOUNT;
       const remainingAmount = mintAmount - burnAmount;
-
-      // First mint some yield
       await proveTx(connect(assetLiability, minter).mintYield(mintAmount));
       expect(await assetLiability.totalYieldSupply()).to.equal(mintAmount);
 
-      // Now burn part of it and check event emission
+      // Execute and verify event
       await expect(connect(assetLiability, minter).burnYield(burnAmount))
         .to.emit(assetLiability, EVENTS.YieldBurned)
         .withArgs(burnAmount);
 
-      // Check state after burning
+      // Verify final state
       expect(await assetLiability.totalYieldSupply()).to.equal(remainingAmount);
       expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(remainingAmount);
     });
 
+    it("Allows multiple burn operations", async () => {
+      // Setup
+      const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+      const mintAmount = YIELD_AMOUNT * 4n;
+      const burn1 = YIELD_AMOUNT;
+      const burn2 = YIELD_AMOUNT * 2n;
+      const remainingAmount = mintAmount - burn1 - burn2;
+      await proveTx(connect(assetLiability, minter).mintYield(mintAmount));
+
+      // Execute first burn and verify
+      await proveTx(connect(assetLiability, minter).burnYield(burn1));
+      expect(await assetLiability.totalYieldSupply()).to.equal(mintAmount - burn1);
+
+      // Execute second burn and verify final state
+      await proveTx(connect(assetLiability, minter).burnYield(burn2));
+      expect(await assetLiability.totalYieldSupply()).to.equal(remainingAmount);
+      expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(remainingAmount);
+    });
+
+    it("Can burn entire yield balance", async () => {
+      // Setup
+      const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+      const amount = YIELD_AMOUNT;
+      await proveTx(connect(assetLiability, minter).mintYield(amount));
+      expect(await assetLiability.totalYieldSupply()).to.equal(amount);
+      expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(amount);
+
+      // Execute and verify final state
+      await proveTx(connect(assetLiability, minter).burnYield(amount));
+      expect(await assetLiability.totalYieldSupply()).to.equal(0);
+      expect(await tokenMock.balanceOf(getAddress(assetLiability))).to.equal(0);
+    });
+
     describe("Is reverted if", async () => {
-      it("The caller lacks MINTER_ROLE", async () => {
+      it("Caller lacks `MINTER_ROLE`", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        // First mint some yield
         await proveTx(connect(assetLiability, minter).mintYield(YIELD_AMOUNT));
 
+        // Verify errors for different callers
         await expect(connect(assetLiability, stranger).burnYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MINTER_ROLE);
@@ -639,14 +790,27 @@ describe("Contract 'AssetLiability'", async () => {
           .withArgs(manager.address, ROLES.MINTER_ROLE);
       });
 
-      it("The contract is paused", async () => {
+      it("Contract is paused", async () => {
+        // Setup
         const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-
         await proveTx(connect(assetLiability, minter).mintYield(YIELD_AMOUNT));
         await pauseContract(assetLiability);
 
+        // Verify error
         await expect(connect(assetLiability, minter).burnYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
+      });
+
+      it("Amount exceeds contract token balance", async () => {
+        // Setup
+        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
+        const mintAmount = YIELD_AMOUNT;
+        await proveTx(connect(assetLiability, minter).mintYield(mintAmount));
+
+        // Verify error when burning more than available
+        const burnAmount = mintAmount * 2n;
+        await expect(connect(assetLiability, minter).burnYield(burnAmount))
+          .to.be.reverted; // Exact error depends on token implementation
       });
     });
   });

@@ -98,8 +98,10 @@ contract AssetLiability is
      */
     function mintYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+
         IERC20Mintable($.underlyingToken).mint(address(this), amount);
         $.totalYieldSupply += amount;
+
         emit YieldMinted(amount);
     }
 
@@ -110,11 +112,14 @@ contract AssetLiability is
      *
      * - The contract must not be paused.
      * - The caller must have the {MINTER_ROLE} role.
+     * - The contract must have sufficient token balance to cover the burn.
      */
     function burnYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
+
         IERC20Mintable($.underlyingToken).burn(amount);
         $.totalYieldSupply -= amount;
+
         emit YieldBurned(amount);
     }
 
@@ -136,6 +141,7 @@ contract AssetLiability is
      * - None of the account addresses can be zero.
      * - None of the amounts can be zero.
      * - None of the amounts can exceed the maximum uint64 value.
+     * - The contract must have sufficient token balance to cover the transfers.
      */
     function transferWithLiability(
         address[] calldata accounts,
