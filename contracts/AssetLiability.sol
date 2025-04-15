@@ -149,38 +149,6 @@ contract AssetLiability is
      * - None of the account addresses can be zero.
      * - None of the amounts can be zero.
      * - None of the amounts can exceed the maximum uint64 value.
-     */
-    function increaseLiability(
-        address[] calldata accounts,
-        uint256[] calldata amounts
-    ) external whenNotPaused onlyRole(MANAGER_ROLE) {
-        uint256 length = accounts.length;
-
-        if (length != amounts.length) {
-            revert AssetLiability_AccountsAndAmountsLengthMismatch();
-        }
-
-        AssetLiabilityStorage storage $ = _getAssetLiabilityStorage();
-
-        for (uint256 i = 0; i < length; ) {
-            _increaseLiability($, accounts[i], amounts[i]);
-            unchecked {
-                ++i;
-            } // Gas optimization - no risk of overflow with reasonable array sizes
-        }
-    }
-
-    /**
-     * @inheritdoc IAssetLiabilityPrimary
-     *
-     * @dev Requirements:
-     *
-     * - The contract must not be paused.
-     * - The caller must have the {MANAGER_ROLE} role.
-     * - The length of accounts and amounts arrays must match.
-     * - None of the account addresses can be zero.
-     * - None of the amounts can be zero.
-     * - None of the amounts can exceed the maximum uint64 value.
      * - None of the amounts can exceed the current liability of the respective account.
      */
     function decreaseLiability(

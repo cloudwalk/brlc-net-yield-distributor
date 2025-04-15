@@ -34,18 +34,6 @@ interface IAssetLiabilityPrimary {
     function transferWithLiability(address[] calldata accounts, uint256[] calldata amounts) external;
 
     /**
-     * @dev Increases the liability of an account by a specified amount.
-     *
-     * This function can be called only by an account with a special role.
-     *
-     * Emits multiple {LiabilityUpdated} events.
-     *
-     * @param accounts The accounts to increase the liability for.
-     * @param amounts The amounts to increase the liability by.
-     */
-    function increaseLiability(address[] calldata accounts, uint256[] calldata amounts) external;
-
-    /**
      * @dev Decreases the liability of an account by a specified amount.
      *
      * This function can be called only by an account with a special role.

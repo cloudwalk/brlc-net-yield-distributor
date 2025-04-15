@@ -406,149 +406,6 @@ describe("Contract 'AssetLiability'", async () => {
     });
   });
 
-  describe("Function 'increaseLiability()'", async () => {
-    describe("Executes as expected if", async () => {
-      it("The liability is increased for a single account", async () => {
-        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
-        const account = user.address;
-        const amount = maxUintForBits(64);
-
-        const tx = connect(assetLiability, manager).increaseLiability([account], [amount]);
-
-        await expect(tx)
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(account, amount, 0);
-        await expect(tx).to.changeTokenBalances(tokenMock, [treasury.address, account], [0, 0]);
-
-        expect(await assetLiability.liabilityOf(account)).to.equal(amount);
-        expect(await assetLiability.totalLiability()).to.equal(amount);
-      });
-
-      it("The liability is increased for multiple accounts, including 2 times for the first one", async () => {
-        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [users[0].address, users[1].address, users[0].address];
-        const amounts = [LIABILITY_AMOUNTS[0], LIABILITY_AMOUNTS[1], LIABILITY_AMOUNTS[2]];
-        const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
-        const transferCount = accounts.length;
-
-        // Check that the function emits the correct events
-        const tx = await connect(assetLiability, manager).increaseLiability(accounts, amounts);
-        await expect(tx)
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[0], amounts[0], 0);
-        await expect(tx)
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[1], amounts[1], 0);
-        await expect(tx)
-          .to.emit(assetLiability, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[0], amounts[transferCount - 1] + amounts[0], amounts[0]);
-
-        // Check the final state
-        expect(await assetLiability.liabilityOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
-        expect(await assetLiability.liabilityOf(accounts[1])).to.equal(amounts[1]);
-        expect(await assetLiability.totalLiability()).to.equal(totalAmount);
-
-        // Check the token balances have not changed
-        await expect(tx).to.changeTokenBalances(
-          tokenMock,
-          [treasury.address, accounts[0], accounts[1]],
-          [0, 0, 0]
-        );
-      });
-
-      it("The liability is increased for the zero number of accounts", async () => {
-        const { assetLiability, tokenMock } = await setUpFixture(deployAndConfigureContracts);
-        const account = user.address;
-        const initialAmount = (LIABILITY_AMOUNT);
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [initialAmount]));
-
-        const tx = connect(assetLiability, manager).increaseLiability([], []);
-
-        // First check there is no event emission
-        await expect(tx).not.to.emit(assetLiability, EVENTS.LiabilityUpdated);
-
-        // Then check there is no token balance change
-        await expect(tx).to.changeTokenBalances(
-          tokenMock,
-          [treasury.address, account],
-          [0, 0]
-        );
-
-        expect(await assetLiability.totalLiability()).to.equal(initialAmount);
-      });
-    });
-
-    describe("Is reverted if", async () => {
-      it("The contract is paused", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        await pauseContract(assetLiability);
-
-        await expect(connect(assetLiability, manager).increaseLiability([user.address], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.EnforcedPause);
-      });
-
-      it("The caller lacks MANAGER_ROLE", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-
-        await expect(connect(assetLiability, stranger).increaseLiability([user.address], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.MANAGER_ROLE);
-
-        await expect(connect(assetLiability, deployer).increaseLiability([user.address], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccessControlUnauthorizedAccount)
-          .withArgs(deployer.address, ROLES.MANAGER_ROLE);
-      });
-
-      it("The arrays length mismatch", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [user.address, users[1].address];
-        const amounts = [LIABILITY_AMOUNT];
-
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
-
-        await expect(connect(assetLiability, manager).increaseLiability([], amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountsAndAmountsLengthMismatch);
-      });
-
-      it("One of the provided accounts addresses is zero", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [user.address, ADDRESS_ZERO];
-        const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT];
-
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AccountAddressZero);
-      });
-
-      it("One of the provided amounts is zero", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [users[0].address, users[1].address];
-        const amounts = [LIABILITY_AMOUNT, 0n];
-
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountZero);
-      });
-
-      it("One of the provided amounts exceeds 64-bit unsigned integer", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [users[0].address, users[1].address];
-        const amounts = [LIABILITY_AMOUNT, maxUintForBits(64) + 1n];
-
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetLiability, ERRORS.AssetLiability_AmountOverflow);
-      });
-
-      it("The result liability for an account exceeds 64-bit unsigned integer", async () => {
-        const { assetLiability } = await setUpFixture(deployAndConfigureContracts);
-        const accounts = [user.address, user.address];
-        const amounts = [maxUintForBits(64), 1n];
-
-        await expect(connect(assetLiability, manager).increaseLiability(accounts, amounts))
-          .to.be.revertedWithPanic(0x11);
-      });
-    });
-  });
-
   describe("Function 'decreaseLiability()'", async () => {
     describe("Executes as expected if", async () => {
       it("The decrease is for a single account's full liability", async () => {
@@ -557,7 +414,7 @@ describe("Contract 'AssetLiability'", async () => {
         const account = user.address;
 
         // First create a liability
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [amount]));
+        await proveTx(connect(assetLiability, manager).transferWithLiability([account], [amount]));
 
         // Then decrease it
         await expect(connect(assetLiability, manager).decreaseLiability([account], [amount]))
@@ -574,7 +431,7 @@ describe("Contract 'AssetLiability'", async () => {
         const amounts = LIABILITY_AMOUNTS.slice(0, 3);
 
         // First create liabilities
-        await proveTx(connect(assetLiability, manager).increaseLiability(accounts, amounts));
+        await proveTx(connect(assetLiability, manager).transferWithLiability(accounts, amounts));
 
         // Then decrease them
         await expect(connect(assetLiability, manager).decreaseLiability(accounts, amounts))
@@ -598,7 +455,7 @@ describe("Contract 'AssetLiability'", async () => {
         const account = user.address;
 
         // First create a liability
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [fullAmount]));
+        await proveTx(connect(assetLiability, manager).transferWithLiability([account], [fullAmount]));
 
         // Then decrease partially
         await expect(connect(assetLiability, manager).decreaseLiability([account], [partialAmount]))
@@ -649,7 +506,7 @@ describe("Contract 'AssetLiability'", async () => {
         const account = user.address;
 
         // First create a liability
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [initialAmount]));
+        await proveTx(connect(assetLiability, manager).transferWithLiability([account], [initialAmount]));
 
         // Try to decrease more than the current liability
         await expect(connect(assetLiability, manager).decreaseLiability([account], [excessAmount]))
@@ -664,7 +521,7 @@ describe("Contract 'AssetLiability'", async () => {
         const account = user.address;
 
         // First create a valid liability
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [initialAmount]));
+        await proveTx(connect(assetLiability, manager).transferWithLiability([account], [initialAmount]));
 
         // Now try to decrease with an amount that exceeds uint64 max
         await expect(connect(assetLiability, manager).decreaseLiability([account], [overflowAmount]))
@@ -677,7 +534,7 @@ describe("Contract 'AssetLiability'", async () => {
         const account = user.address;
 
         // First create a liability
-        await proveTx(connect(assetLiability, manager).increaseLiability([account], [amount]));
+        await proveTx(connect(assetLiability, manager).transferWithLiability([account], [amount]));
 
         // Pause the contract
         await pauseContract(assetLiability);
