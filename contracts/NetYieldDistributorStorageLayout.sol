@@ -7,7 +7,7 @@ import { INetYieldDistributorTypes } from "./interfaces/INetYieldDistributorType
 /**
  * @title NetYieldDistributorStorageLayout contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the storage layout for the asset yield contract.
+ * @dev Defines the storage layout for the net yield distributor contract.
  */
 abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes {
     // ------------------ Constants ------------------------------- //
@@ -15,10 +15,10 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
     /// @dev The role of this contract owner.
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
-    /// @dev The role of minter that is allowed to mint and burn yield asset.
+    /// @dev The role of minter that is allowed to mint and burn asset yield tokens.
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    /// @dev The role of manager that is allowed to perform operations with the liability.
+    /// @dev The role of manager that is allowed to perform operations with advanced net yield balances.
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // ------------------ Storage layout -------------------------- //
@@ -27,8 +27,8 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
      * ERC-7201: Namespaced Storage Layout
      * keccak256(abi.encode(uint256(keccak256("cloudwalk.storage.NetYieldDistributor")) - 1)) & ~bytes32(uint256(0xff))
      */
-    bytes32 private constant ASSET_YIELD_STORAGE_LOCATION =
-        0x04649658641e694a55129f42214ab5272db9dc0c1f7e0cb89509224043caec00;
+    bytes32 private constant NET_YIELD_DISTRIBUTOR_STORAGE_LOCATION =
+        0x5cf268c37df8ee908cfc4ce728840165d3db872a975b57936977abc1fe583800;
 
     /**
      * @dev Defines the contract storage structure.
@@ -36,9 +36,9 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
      * The fields:
      *
      * - underlyingToken ------ The address of the underlying token contract.
-     * - totalYieldSupply ----- The total supply of yield asset.
-     * - totalLiability ------- The sum of all liabilities.
-     * - liabilities ---------- The mapping of a liability for a given account.
+     * - totalNetYieldSupply -- The total supply of asset yield tokens in circulation.
+     * - totalAdvanceYield ---- The sum of all advanced net yield balances for all accounts.
+     * - advancedNetYields ---- The mapping of advanced net yield for a given account.
      *
      * @custom:storage-location erc7201:cloudwalk.storage.NetYieldDistributor
      */
@@ -48,20 +48,20 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
         // uint96 __reserved1; // Reserved for future use until the end of the storage slot
 
         // Slot 2
-        uint256 totalYieldSupply;
+        uint256 totalNetYieldSupply;
 
         // Slot 3
-        uint256 totalLiability;
+        uint256 totalAdvanceYield;
 
         // Slot 4
-        mapping(address account => Liability liability) liabilities;
+        mapping(address account => AdvancedNetYield) advancedNetYields;
     }
 
     // ------------------ Internal functions ---------------------- //
 
     /// @dev Returns the storage slot location for the `NetYieldDistributorStorage` struct.
     function _getNetYieldDistributorStorage() internal pure returns (NetYieldDistributorStorage storage data) {
-        bytes32 position = ASSET_YIELD_STORAGE_LOCATION;
+        bytes32 position = NET_YIELD_DISTRIBUTOR_STORAGE_LOCATION;
         assembly {
             data.slot := position
         }

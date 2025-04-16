@@ -19,9 +19,10 @@ const ROLES = {
 };
 
 const EVENTS = {
-  LiabilityUpdated: "LiabilityUpdated",
-  YieldMinted: "YieldMinted",
-  YieldBurned: "YieldBurned"
+  NetYieldAdvanced: "NetYieldAdvanced",
+  NetYieldReduced: "NetYieldReduced",
+  AssetYieldMinted: "AssetYieldMinted",
+  AssetYieldBurned: "AssetYieldBurned"
 };
 
 const ERRORS = {
@@ -155,8 +156,8 @@ describe("Contract 'NetYieldDistributor'", async () => {
       expect(await assetYield.hasRole(ROLES.PAUSER_ROLE, deployer.address)).to.equal(false);
 
       // Verify initial state values
-      expect(await assetYield.totalYieldSupply()).to.equal(0);
-      expect(await assetYield.totalLiability()).to.equal(0);
+      expect(await assetYield.totalNetYieldSupply()).to.equal(0);
+      expect(await assetYield.totalAdvanceYield()).to.equal(0);
     });
 
     it("Is reverted if called a second time", async () => {
@@ -224,7 +225,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
     });
   });
 
-  describe("Function 'transferWithLiability()'", async () => {
+  describe("Function 'advanceNetYield()'", async () => {
     describe("Executes as expected if", async () => {
       it("Transfer is for a single account", async () => {
         const { assetYield, tokenMock } = await setUpFixture(deployAndConfigureContracts);
@@ -232,15 +233,15 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const account = user.address;
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(amount * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(amount * 2n));
 
         // Execute
-        const tx = connect(assetYield, manager).transferWithLiability([account], [amount]);
+        const tx = connect(assetYield, manager).advanceNetYield([account], [amount]);
 
         // Verify event emission
         await expect(tx)
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(account, amount, 0);
+          .to.emit(assetYield, EVENTS.NetYieldAdvanced)
+          .withArgs(account, amount);
 
         // Verify token balance changes
         await expect(tx).to.changeTokenBalances(
@@ -250,8 +251,8 @@ describe("Contract 'NetYieldDistributor'", async () => {
         );
 
         // Verify final state
-        expect(await assetYield.liabilityOf(account)).to.equal(amount);
-        expect(await assetYield.totalLiability()).to.equal(amount);
+        expect(await assetYield.advanceNetYieldOf(account)).to.equal(amount);
+        expect(await assetYield.totalAdvanceYield()).to.equal(amount);
       });
 
       it("Transfer is for multiple accounts, including duplicates", async () => {
@@ -264,26 +265,26 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(totalAmount * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(totalAmount * 2n));
 
         // Execute
-        const tx = await connect(assetYield, manager).transferWithLiability(accounts, amounts);
+        const tx = await connect(assetYield, manager).advanceNetYield(accounts, amounts);
 
         // Verify events
         for (let i = 0; i < accounts.length - 1; ++i) {
           await expect(tx)
-            .to.emit(assetYield, EVENTS.LiabilityUpdated)
-            .withArgs(accounts[i], amounts[i], 0);
+            .to.emit(assetYield, EVENTS.NetYieldAdvanced)
+            .withArgs(accounts[i], amounts[i]);
         }
         await expect(tx)
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[transferCount - 1], amounts[transferCount - 1] + amounts[0], amounts[0]);
+          .to.emit(assetYield, EVENTS.NetYieldAdvanced)
+          .withArgs(accounts[transferCount - 1], amounts[transferCount - 1]);
 
         // Verify final state
-        expect(await assetYield.liabilityOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
-        expect(await assetYield.liabilityOf(accounts[1])).to.equal(amounts[1]);
-        expect(await assetYield.liabilityOf(accounts[2])).to.equal(amounts[2]);
-        expect(await assetYield.totalLiability()).to.equal(totalAmount);
+        expect(await assetYield.advanceNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
+        expect(await assetYield.advanceNetYieldOf(accounts[1])).to.equal(amounts[1]);
+        expect(await assetYield.advanceNetYieldOf(accounts[2])).to.equal(amounts[2]);
+        expect(await assetYield.totalAdvanceYield()).to.equal(totalAmount);
 
         // Verify token balance changes
         await expect(tx).to.changeTokenBalances(
@@ -297,13 +298,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(LIABILITY_AMOUNT));
+        await proveTx(connect(assetYield, minter).mintAssetYield(LIABILITY_AMOUNT));
 
         // Execute
-        const tx = connect(assetYield, manager).transferWithLiability([], []);
+        const tx = connect(assetYield, manager).advanceNetYield([], []);
 
         // Verify no events emitted
-        await expect(tx).not.to.emit(assetYield, EVENTS.LiabilityUpdated);
+        await expect(tx).not.to.emit(assetYield, EVENTS.NetYieldAdvanced);
 
         // Verify no token balance changes
         await expect(tx).to.changeTokenBalances(
@@ -313,7 +314,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         );
 
         // Verify final state
-        expect(await assetYield.totalLiability()).to.equal(0);
+        expect(await assetYield.totalAdvanceYield()).to.equal(0);
       });
     });
 
@@ -322,11 +323,11 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(LIABILITY_AMOUNT * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(LIABILITY_AMOUNT * 2n));
         await pauseContract(assetYield);
 
         // Verify error
-        await expect(connect(assetYield, manager).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
+        await expect(connect(assetYield, manager).advanceNetYield([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.EnforcedPause);
       });
 
@@ -334,14 +335,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(LIABILITY_AMOUNT * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(LIABILITY_AMOUNT * 2n));
 
         // Verify errors for different callers
-        await expect(connect(assetYield, stranger).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
+        await expect(connect(assetYield, stranger).advanceNetYield([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(assetYield, deployer).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
+        await expect(connect(assetYield, deployer).advanceNetYield([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
@@ -351,11 +352,11 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         // Setup - mint less than required
         const smallAmount = LIABILITY_AMOUNT / 2n;
-        await proveTx(connect(assetYield, minter).mintYield(smallAmount));
+        await proveTx(connect(assetYield, minter).mintAssetYield(smallAmount));
 
         // Verify error when attempting to transfer more than available
         await expect(
-          connect(assetYield, manager).transferWithLiability([user.address], [LIABILITY_AMOUNT])
+          connect(assetYield, manager).advanceNetYield([user.address], [LIABILITY_AMOUNT])
         ).to.be.reverted;
       });
 
@@ -363,16 +364,16 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(LIABILITY_AMOUNT * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(LIABILITY_AMOUNT * 2n));
 
         // Verify errors for different mismatch scenarios
         const accounts = [user.address, users[1].address];
         const amounts = [LIABILITY_AMOUNT];
 
-        await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
+        await expect(connect(assetYield, manager).advanceNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
 
-        await expect(connect(assetYield, manager).transferWithLiability([], amounts))
+        await expect(connect(assetYield, manager).advanceNetYield([], amounts))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
       });
 
@@ -380,12 +381,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(LIABILITY_AMOUNT * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(LIABILITY_AMOUNT * 2n));
         const accounts = [user.address, ADDRESS_ZERO];
         const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT];
 
         // Verify error
-        await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
+        await expect(connect(assetYield, manager).advanceNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountAddressZero);
       });
 
@@ -393,12 +394,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(LIABILITY_AMOUNT * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(LIABILITY_AMOUNT * 2n));
         const accounts = [users[0].address, users[1].address];
         const amounts = [LIABILITY_AMOUNT, 0n];
 
         // Verify error
-        await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
+        await expect(connect(assetYield, manager).advanceNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountZero);
       });
 
@@ -407,12 +408,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         // Setup
         const largeAmount = maxUintForBits(64) * 2n;
-        await proveTx(connect(assetYield, minter).mintYield(largeAmount));
+        await proveTx(connect(assetYield, minter).mintAssetYield(largeAmount));
         const accounts = [users[0].address, users[1].address];
         const amounts = [LIABILITY_AMOUNT, maxUintForBits(64) + 1n];
 
         // Verify error
-        await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
+        await expect(connect(assetYield, manager).advanceNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountOverflow);
       });
 
@@ -421,18 +422,18 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         // Setup
         const largeAmount = maxUintForBits(64) * 2n;
-        await proveTx(connect(assetYield, minter).mintYield(largeAmount));
+        await proveTx(connect(assetYield, minter).mintAssetYield(largeAmount));
         const accounts = [user.address, user.address];
         const amounts = [1n, maxUintForBits(64)];
 
         // Verify error
-        await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
+        await expect(connect(assetYield, manager).advanceNetYield(accounts, amounts))
           .to.be.revertedWithPanic(0x11);
       });
     });
   });
 
-  describe("Function 'decreaseLiability()'", async () => {
+  describe("Function 'reduceAdvanceNetYield()'", async () => {
     describe("Executes as expected if", async () => {
       it("Decreasing a single account's full liability", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
@@ -440,17 +441,17 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const account = user.address;
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(amount * 2n));
-        await proveTx(connect(assetYield, manager).transferWithLiability([account], [amount]));
+        await proveTx(connect(assetYield, minter).mintAssetYield(amount * 2n));
+        await proveTx(connect(assetYield, manager).advanceNetYield([account], [amount]));
 
         // Execute and verify event
-        await expect(connect(assetYield, manager).decreaseLiability([account], [amount]))
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(account, 0, amount);
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([account], [amount]))
+          .to.emit(assetYield, EVENTS.NetYieldReduced)
+          .withArgs(account, amount);
 
         // Verify final state
-        expect(await assetYield.liabilityOf(account)).to.equal(0);
-        expect(await assetYield.totalLiability()).to.equal(0);
+        expect(await assetYield.advanceNetYieldOf(account)).to.equal(0);
+        expect(await assetYield.totalAdvanceYield()).to.equal(0);
       });
 
       it("Decreasing liability for multiple accounts", async () => {
@@ -460,23 +461,23 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(totalAmount * 2n));
-        await proveTx(connect(assetYield, manager).transferWithLiability(accounts, amounts));
+        await proveTx(connect(assetYield, minter).mintAssetYield(totalAmount * 2n));
+        await proveTx(connect(assetYield, manager).advanceNetYield(accounts, amounts));
 
         // Execute and verify events
-        await expect(connect(assetYield, manager).decreaseLiability(accounts, amounts))
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[0], 0, amounts[0])
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[1], 0, amounts[1])
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(accounts[2], 0, amounts[2]);
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield(accounts, amounts))
+          .to.emit(assetYield, EVENTS.NetYieldReduced)
+          .withArgs(accounts[0], amounts[0])
+          .to.emit(assetYield, EVENTS.NetYieldReduced)
+          .withArgs(accounts[1], amounts[1])
+          .to.emit(assetYield, EVENTS.NetYieldReduced)
+          .withArgs(accounts[2], amounts[2]);
 
         // Verify final state
-        expect(await assetYield.liabilityOf(accounts[0])).to.equal(0);
-        expect(await assetYield.liabilityOf(accounts[1])).to.equal(0);
-        expect(await assetYield.liabilityOf(accounts[2])).to.equal(0);
-        expect(await assetYield.totalLiability()).to.equal(0);
+        expect(await assetYield.advanceNetYieldOf(accounts[0])).to.equal(0);
+        expect(await assetYield.advanceNetYieldOf(accounts[1])).to.equal(0);
+        expect(await assetYield.advanceNetYieldOf(accounts[2])).to.equal(0);
+        expect(await assetYield.totalAdvanceYield()).to.equal(0);
       });
 
       it("Performing partial liability decrease", async () => {
@@ -486,48 +487,48 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const account = user.address;
 
         // Setup
-        await proveTx(connect(assetYield, minter).mintYield(fullAmount * 2n));
-        await proveTx(connect(assetYield, manager).transferWithLiability([account], [fullAmount]));
+        await proveTx(connect(assetYield, minter).mintAssetYield(fullAmount * 2n));
+        await proveTx(connect(assetYield, manager).advanceNetYield([account], [fullAmount]));
 
         // Execute and verify event
-        await expect(connect(assetYield, manager).decreaseLiability([account], [partialAmount]))
-          .to.emit(assetYield, EVENTS.LiabilityUpdated)
-          .withArgs(account, fullAmount - partialAmount, fullAmount);
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([account], [partialAmount]))
+          .to.emit(assetYield, EVENTS.NetYieldReduced)
+          .withArgs(account, partialAmount);
 
         // Verify final state
-        expect(await assetYield.liabilityOf(account)).to.equal(fullAmount - partialAmount);
-        expect(await assetYield.totalLiability()).to.equal(fullAmount - partialAmount);
+        expect(await assetYield.advanceNetYieldOf(account)).to.equal(fullAmount - partialAmount);
+        expect(await assetYield.totalAdvanceYield()).to.equal(fullAmount - partialAmount);
       });
     });
 
-    describe("Updates `totalYieldSupply` correctly", async () => {
+    describe("Updates `totalNetYieldSupply` correctly", async () => {
       it("When decreasing liability for accounts sequentially", async () => {
         const { assetYield, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
         // Setup
         const initialAmount = LIABILITY_AMOUNT * 2n;
-        await proveTx(connect(assetYield, minter).mintYield(initialAmount));
+        await proveTx(connect(assetYield, minter).mintAssetYield(initialAmount));
 
         const accounts = [users[0].address, users[1].address];
         const amounts = [LIABILITY_AMOUNT, LIABILITY_AMOUNT / 2n];
-        const totalLiabilityAmount = amounts[0] + amounts[1];
+        const totalAdvanceYieldAmount = amounts[0] + amounts[1];
 
-        await proveTx(connect(assetYield, manager).transferWithLiability(accounts, amounts));
+        await proveTx(connect(assetYield, manager).advanceNetYield(accounts, amounts));
 
         // Verify initial state after transfer
-        expect(await assetYield.totalYieldSupply()).to.equal(initialAmount);
-        expect(await assetYield.totalLiability()).to.equal(totalLiabilityAmount);
-        expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(initialAmount - totalLiabilityAmount);
+        expect(await assetYield.totalNetYieldSupply()).to.equal(initialAmount);
+        expect(await assetYield.totalAdvanceYield()).to.equal(totalAdvanceYieldAmount);
+        expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(initialAmount - totalAdvanceYieldAmount);
 
         // Execute first decrease and verify
-        await proveTx(connect(assetYield, manager).decreaseLiability([accounts[0]], [amounts[0]]));
-        expect(await assetYield.totalYieldSupply()).to.equal(initialAmount - amounts[0]);
-        expect(await assetYield.totalLiability()).to.equal(amounts[1]);
+        await proveTx(connect(assetYield, manager).reduceAdvanceNetYield([accounts[0]], [amounts[0]]));
+        expect(await assetYield.totalNetYieldSupply()).to.equal(initialAmount - amounts[0]);
+        expect(await assetYield.totalAdvanceYield()).to.equal(amounts[1]);
 
         // Execute second decrease and verify final state
-        await proveTx(connect(assetYield, manager).decreaseLiability([accounts[1]], [amounts[1]]));
-        expect(await assetYield.totalYieldSupply()).to.equal(initialAmount - totalLiabilityAmount);
-        expect(await assetYield.totalLiability()).to.equal(0);
+        await proveTx(connect(assetYield, manager).reduceAdvanceNetYield([accounts[1]], [amounts[1]]));
+        expect(await assetYield.totalNetYieldSupply()).to.equal(initialAmount - totalAdvanceYieldAmount);
+        expect(await assetYield.totalAdvanceYield()).to.equal(0);
       });
 
       it("When decreasing liability for multiple accounts in batch", async () => {
@@ -535,22 +536,22 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         // Setup
         const initialAmount = LIABILITY_AMOUNT * 6n;
-        await proveTx(connect(assetYield, minter).mintYield(initialAmount));
+        await proveTx(connect(assetYield, minter).mintAssetYield(initialAmount));
 
         const accounts = users.slice(0, 3).map(user => user.address);
         const amounts = LIABILITY_AMOUNTS.slice(0, 3);
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
 
-        await proveTx(connect(assetYield, manager).transferWithLiability(accounts, amounts));
+        await proveTx(connect(assetYield, manager).advanceNetYield(accounts, amounts));
 
         // Verify initial state
-        expect(await assetYield.totalYieldSupply()).to.equal(initialAmount);
-        expect(await assetYield.totalLiability()).to.equal(totalAmount);
+        expect(await assetYield.totalNetYieldSupply()).to.equal(initialAmount);
+        expect(await assetYield.totalAdvanceYield()).to.equal(totalAmount);
 
         // Execute batch decrease and verify final state
-        await proveTx(connect(assetYield, manager).decreaseLiability(accounts, amounts));
-        expect(await assetYield.totalYieldSupply()).to.equal(initialAmount - totalAmount);
-        expect(await assetYield.totalLiability()).to.equal(0);
+        await proveTx(connect(assetYield, manager).reduceAdvanceNetYield(accounts, amounts));
+        expect(await assetYield.totalNetYieldSupply()).to.equal(initialAmount - totalAmount);
+        expect(await assetYield.totalAdvanceYield()).to.equal(0);
       });
     });
 
@@ -562,7 +563,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const amounts = [LIABILITY_AMOUNT];
 
         // Verify error
-        await expect(connect(assetYield, manager).decreaseLiability(accounts, amounts))
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
       });
 
@@ -571,7 +572,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Verify error
-        await expect(connect(assetYield, stranger).decreaseLiability([user.address], [LIABILITY_AMOUNT]))
+        await expect(connect(assetYield, stranger).reduceAdvanceNetYield([user.address], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
       });
@@ -581,7 +582,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Verify error
-        await expect(connect(assetYield, manager).decreaseLiability([ADDRESS_ZERO], [LIABILITY_AMOUNT]))
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([ADDRESS_ZERO], [LIABILITY_AMOUNT]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountAddressZero);
       });
 
@@ -590,7 +591,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
 
         // Verify error
-        await expect(connect(assetYield, manager).decreaseLiability([user.address], [0]))
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([user.address], [0]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountZero);
       });
 
@@ -601,13 +602,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const account = user.address;
 
         // Mint yield to the contract
-        await proveTx(connect(assetYield, minter).mintYield(initialAmount * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(initialAmount * 2n));
 
         // First create a liability
-        await proveTx(connect(assetYield, manager).transferWithLiability([account], [initialAmount]));
+        await proveTx(connect(assetYield, manager).advanceNetYield([account], [initialAmount]));
 
         // Try to decrease more than the current liability
-        await expect(connect(assetYield, manager).decreaseLiability([account], [excessAmount]))
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([account], [excessAmount]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_DecreaseAmountExcess);
       });
 
@@ -619,13 +620,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const account = user.address;
 
         // Mint yield to the contract
-        await proveTx(connect(assetYield, minter).mintYield(initialAmount * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(initialAmount * 2n));
 
         // First create a valid liability
-        await proveTx(connect(assetYield, manager).transferWithLiability([account], [initialAmount]));
+        await proveTx(connect(assetYield, manager).advanceNetYield([account], [initialAmount]));
 
         // Now try to decrease with an amount that exceeds uint64 max
-        await expect(connect(assetYield, manager).decreaseLiability([account], [overflowAmount]))
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([account], [overflowAmount]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountOverflow);
       });
 
@@ -635,38 +636,38 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const account = user.address;
 
         // Mint yield to the contract
-        await proveTx(connect(assetYield, minter).mintYield(amount * 2n));
+        await proveTx(connect(assetYield, minter).mintAssetYield(amount * 2n));
 
         // First create a liability
-        await proveTx(connect(assetYield, manager).transferWithLiability([account], [amount]));
+        await proveTx(connect(assetYield, manager).advanceNetYield([account], [amount]));
 
         // Pause the contract
         await pauseContract(assetYield);
 
         // Try to decrease while paused
-        await expect(connect(assetYield, manager).decreaseLiability([account], [amount]))
+        await expect(connect(assetYield, manager).reduceAdvanceNetYield([account], [amount]))
           .to.be.revertedWithCustomError(assetYield, ERRORS.EnforcedPause);
       });
     });
   });
 
-  describe("Function 'mintYield()'", async () => {
+  describe("Function 'mintAssetYield()'", async () => {
     it("Mints tokens and emits correct event", async () => {
       // Setup
       const { assetYield, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const amount = YIELD_AMOUNT;
 
       // Verify initial state
-      expect(await assetYield.totalYieldSupply()).to.equal(0);
+      expect(await assetYield.totalNetYieldSupply()).to.equal(0);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(0);
 
       // Execute and verify event
-      await expect(connect(assetYield, minter).mintYield(amount))
-        .to.emit(assetYield, EVENTS.YieldMinted)
+      await expect(connect(assetYield, minter).mintAssetYield(amount))
+        .to.emit(assetYield, EVENTS.AssetYieldMinted)
         .withArgs(amount);
 
       // Verify final state
-      expect(await assetYield.totalYieldSupply()).to.equal(amount);
+      expect(await assetYield.totalNetYieldSupply()).to.equal(amount);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(amount);
     });
 
@@ -678,17 +679,17 @@ describe("Contract 'NetYieldDistributor'", async () => {
       const totalAmount = amount1 + amount2;
 
       // Execute first mint and verify
-      await proveTx(connect(assetYield, minter).mintYield(amount1));
-      expect(await assetYield.totalYieldSupply()).to.equal(amount1);
+      await proveTx(connect(assetYield, minter).mintAssetYield(amount1));
+      expect(await assetYield.totalNetYieldSupply()).to.equal(amount1);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(amount1);
 
       // Execute second mint and verify event
-      await expect(connect(assetYield, minter).mintYield(amount2))
-        .to.emit(assetYield, EVENTS.YieldMinted)
+      await expect(connect(assetYield, minter).mintAssetYield(amount2))
+        .to.emit(assetYield, EVENTS.AssetYieldMinted)
         .withArgs(amount2);
 
       // Verify final state
-      expect(await assetYield.totalYieldSupply()).to.equal(totalAmount);
+      expect(await assetYield.totalNetYieldSupply()).to.equal(totalAmount);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(totalAmount);
     });
 
@@ -696,14 +697,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Caller lacks `MINTER_ROLE`", async () => {
         // Setup
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
-        await proveTx(connect(assetYield, minter).mintYield(YIELD_AMOUNT));
+        await proveTx(connect(assetYield, minter).mintAssetYield(YIELD_AMOUNT));
 
         // Verify errors for different callers
-        await expect(connect(assetYield, stranger).mintYield(YIELD_AMOUNT))
+        await expect(connect(assetYield, stranger).mintAssetYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MINTER_ROLE);
 
-        await expect(connect(assetYield, manager).mintYield(YIELD_AMOUNT))
+        await expect(connect(assetYield, manager).mintAssetYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(manager.address, ROLES.MINTER_ROLE);
       });
@@ -711,33 +712,33 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Contract is paused", async () => {
         // Setup
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
-        await proveTx(connect(assetYield, minter).mintYield(YIELD_AMOUNT));
+        await proveTx(connect(assetYield, minter).mintAssetYield(YIELD_AMOUNT));
         await pauseContract(assetYield);
 
         // Verify error
-        await expect(connect(assetYield, minter).mintYield(YIELD_AMOUNT))
+        await expect(connect(assetYield, minter).mintAssetYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetYield, ERRORS.EnforcedPause);
       });
     });
   });
 
-  describe("Function 'burnYield()'", async () => {
+  describe("Function 'burnAssetYield()'", async () => {
     it("Burns tokens and emits correct event", async () => {
       // Setup
       const { assetYield, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const mintAmount = YIELD_AMOUNT * 2n;
       const burnAmount = YIELD_AMOUNT;
       const remainingAmount = mintAmount - burnAmount;
-      await proveTx(connect(assetYield, minter).mintYield(mintAmount));
-      expect(await assetYield.totalYieldSupply()).to.equal(mintAmount);
+      await proveTx(connect(assetYield, minter).mintAssetYield(mintAmount));
+      expect(await assetYield.totalNetYieldSupply()).to.equal(mintAmount);
 
       // Execute and verify event
-      await expect(connect(assetYield, minter).burnYield(burnAmount))
-        .to.emit(assetYield, EVENTS.YieldBurned)
+      await expect(connect(assetYield, minter).burnAssetYield(burnAmount))
+        .to.emit(assetYield, EVENTS.AssetYieldBurned)
         .withArgs(burnAmount);
 
       // Verify final state
-      expect(await assetYield.totalYieldSupply()).to.equal(remainingAmount);
+      expect(await assetYield.totalNetYieldSupply()).to.equal(remainingAmount);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(remainingAmount);
     });
 
@@ -748,15 +749,15 @@ describe("Contract 'NetYieldDistributor'", async () => {
       const burn1 = YIELD_AMOUNT;
       const burn2 = YIELD_AMOUNT * 2n;
       const remainingAmount = mintAmount - burn1 - burn2;
-      await proveTx(connect(assetYield, minter).mintYield(mintAmount));
+      await proveTx(connect(assetYield, minter).mintAssetYield(mintAmount));
 
       // Execute first burn and verify
-      await proveTx(connect(assetYield, minter).burnYield(burn1));
-      expect(await assetYield.totalYieldSupply()).to.equal(mintAmount - burn1);
+      await proveTx(connect(assetYield, minter).burnAssetYield(burn1));
+      expect(await assetYield.totalNetYieldSupply()).to.equal(mintAmount - burn1);
 
       // Execute second burn and verify final state
-      await proveTx(connect(assetYield, minter).burnYield(burn2));
-      expect(await assetYield.totalYieldSupply()).to.equal(remainingAmount);
+      await proveTx(connect(assetYield, minter).burnAssetYield(burn2));
+      expect(await assetYield.totalNetYieldSupply()).to.equal(remainingAmount);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(remainingAmount);
     });
 
@@ -764,13 +765,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
       // Setup
       const { assetYield, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const amount = YIELD_AMOUNT;
-      await proveTx(connect(assetYield, minter).mintYield(amount));
-      expect(await assetYield.totalYieldSupply()).to.equal(amount);
+      await proveTx(connect(assetYield, minter).mintAssetYield(amount));
+      expect(await assetYield.totalNetYieldSupply()).to.equal(amount);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(amount);
 
       // Execute and verify final state
-      await proveTx(connect(assetYield, minter).burnYield(amount));
-      expect(await assetYield.totalYieldSupply()).to.equal(0);
+      await proveTx(connect(assetYield, minter).burnAssetYield(amount));
+      expect(await assetYield.totalNetYieldSupply()).to.equal(0);
       expect(await tokenMock.balanceOf(getAddress(assetYield))).to.equal(0);
     });
 
@@ -778,14 +779,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Caller lacks `MINTER_ROLE`", async () => {
         // Setup
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
-        await proveTx(connect(assetYield, minter).mintYield(YIELD_AMOUNT));
+        await proveTx(connect(assetYield, minter).mintAssetYield(YIELD_AMOUNT));
 
         // Verify errors for different callers
-        await expect(connect(assetYield, stranger).burnYield(YIELD_AMOUNT))
+        await expect(connect(assetYield, stranger).burnAssetYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MINTER_ROLE);
 
-        await expect(connect(assetYield, manager).burnYield(YIELD_AMOUNT))
+        await expect(connect(assetYield, manager).burnAssetYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(manager.address, ROLES.MINTER_ROLE);
       });
@@ -793,11 +794,11 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Contract is paused", async () => {
         // Setup
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
-        await proveTx(connect(assetYield, minter).mintYield(YIELD_AMOUNT));
+        await proveTx(connect(assetYield, minter).mintAssetYield(YIELD_AMOUNT));
         await pauseContract(assetYield);
 
         // Verify error
-        await expect(connect(assetYield, minter).burnYield(YIELD_AMOUNT))
+        await expect(connect(assetYield, minter).burnAssetYield(YIELD_AMOUNT))
           .to.be.revertedWithCustomError(assetYield, ERRORS.EnforcedPause);
       });
 
@@ -805,11 +806,11 @@ describe("Contract 'NetYieldDistributor'", async () => {
         // Setup
         const { assetYield } = await setUpFixture(deployAndConfigureContracts);
         const mintAmount = YIELD_AMOUNT;
-        await proveTx(connect(assetYield, minter).mintYield(mintAmount));
+        await proveTx(connect(assetYield, minter).mintAssetYield(mintAmount));
 
         // Verify error when burning more than available
         const burnAmount = mintAmount * 2n;
-        await expect(connect(assetYield, minter).burnYield(burnAmount))
+        await expect(connect(assetYield, minter).burnAssetYield(burnAmount))
           .to.be.reverted; // Exact error depends on token implementation
       });
     });

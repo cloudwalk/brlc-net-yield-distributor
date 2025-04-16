@@ -21,7 +21,7 @@ import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 /**
  * @title NetYieldDistributor contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev The contract that manages the asset yield of accounts.
+ * @dev The contract that manages the net yield for accounts.
  */
 contract NetYieldDistributor is
     NetYieldDistributorStorageLayout,
@@ -53,7 +53,7 @@ contract NetYieldDistributor is
      * - The token address must not be zero.
      *
      * @param underlyingToken_ The address of the token to set as the underlying one.
-     * This is the ERC20 token that will be used for transfers and liability tracking.
+     * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
      * Cannot be zero address.
      */
     function initialize(address underlyingToken_) external initializer {
@@ -96,13 +96,13 @@ contract NetYieldDistributor is
      * - The contract must not be paused.
      * - The caller must have the {MINTER_ROLE} role.
      */
-    function mintYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
+    function mintAssetYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).mint(address(this), amount);
-        $.totalYieldSupply += amount;
+        $.totalNetYieldSupply += amount;
 
-        emit YieldMinted(amount);
+        emit AssetYieldMinted(amount);
     }
 
     /**
@@ -114,20 +114,13 @@ contract NetYieldDistributor is
      * - The caller must have the {MINTER_ROLE} role.
      * - The contract must have sufficient token balance to cover the burn.
      */
-    function burnYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
+    function burnAssetYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).burn(amount);
-        $.totalYieldSupply -= amount;
+        $.totalNetYieldSupply -= amount;
 
-        emit YieldBurned(amount);
-    }
-
-    /**
-     * @inheritdoc INetYieldDistributorPrimary
-     */
-    function totalYieldSupply() external view returns (uint256) {
-        return _getNetYieldDistributorStorage().totalYieldSupply;
+        emit AssetYieldBurned(amount);
     }
 
     /**
@@ -143,7 +136,7 @@ contract NetYieldDistributor is
      * - None of the amounts can exceed the maximum uint64 value.
      * - The contract must have sufficient token balance to cover the transfers.
      */
-    function transferWithLiability(
+    function advanceNetYield(
         address[] calldata accounts,
         uint256[] calldata amounts
     ) external whenNotPaused onlyRole(MANAGER_ROLE) {
@@ -156,7 +149,7 @@ contract NetYieldDistributor is
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         for (uint256 i = 0; i < length; ) {
-            _transferWithLiability($, accounts[i], amounts[i]);
+            _advanceNetYield($, accounts[i], amounts[i]);
             unchecked {
                 ++i;
             } // Gas optimization - no risk of overflow with reasonable array sizes
@@ -174,9 +167,9 @@ contract NetYieldDistributor is
      * - None of the account addresses can be zero.
      * - None of the amounts can be zero.
      * - None of the amounts can exceed the maximum uint64 value.
-     * - None of the amounts can exceed the current liability of the respective account.
+     * - None of the amounts can exceed the current advanced net yield balance of the respective account.
      */
-    function decreaseLiability(
+    function reduceAdvanceNetYield(
         address[] calldata accounts,
         uint256[] calldata amounts
     ) external whenNotPaused onlyRole(MANAGER_ROLE) {
@@ -190,14 +183,14 @@ contract NetYieldDistributor is
         uint256 totalAmount = 0;
 
         for (uint256 i = 0; i < length; ) {
-            _decreaseLiability($, accounts[i], amounts[i]);
+            _reduceAdvanceNetYield($, accounts[i], amounts[i]);
             totalAmount += amounts[i];
             unchecked {
                 ++i;
             } // Gas optimization - no risk of overflow with reasonable array sizes
         }
 
-        $.totalYieldSupply -= totalAmount;
+        $.totalNetYieldSupply -= totalAmount;
     }
 
     // ------------------ View functions -------------------------- //
@@ -212,15 +205,22 @@ contract NetYieldDistributor is
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function liabilityOf(address account) external view returns (uint256) {
-        return _getNetYieldDistributorStorage().liabilities[account].amount;
+    function advanceNetYieldOf(address account) external view returns (uint256) {
+        return _getNetYieldDistributorStorage().advancedNetYields[account].current;
     }
 
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function totalLiability() external view returns (uint256) {
-        return _getNetYieldDistributorStorage().totalLiability;
+    function totalNetYieldSupply() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().totalNetYieldSupply;
+    }
+
+    /**
+     * @inheritdoc INetYieldDistributorPrimary
+     */
+    function totalAdvanceYield() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().totalAdvanceYield;
     }
 
     // ------------------ Pure functions -------------------------- //
@@ -231,7 +231,7 @@ contract NetYieldDistributor is
     // ------------------ Internal functions ---------------------- //
 
     /**
-     * @dev Transfers tokens to an account and increases its liability.
+     * @dev Transfers tokens to an account and increases its advanced net yield balance.
      *
      * Requirements:
      *
@@ -243,15 +243,15 @@ contract NetYieldDistributor is
      * @param account The account to transfer tokens to.
      * @param amount The amount of tokens to transfer.
      *
-     * Emits a {LiabilityUpdated} event (via the _increaseLiability function).
+     * Emits a {NetYieldAdvanced} event (via the _increaseAdvancedNetYield function).
      */
-    function _transferWithLiability(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
-        _increaseLiability($, account, amount);
+    function _advanceNetYield(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
+        _increaseAdvancedNetYield($, account, amount);
         SafeERC20.safeTransfer(IERC20($.underlyingToken), account, amount);
     }
 
     /**
-     * @dev Increases the liability of an account.
+     * @dev Increases the advanced net yield balance of an account.
      *
      * Requirements:
      *
@@ -259,68 +259,69 @@ contract NetYieldDistributor is
      * - The amount must not be zero.
      * - The amount must not exceed the maximum uint64 value.
      *
-     * @param account The account to increase the liability for.
-     * @param amount The amount to increase the liability by.
+     * @param account The account to increase the advanced net yield for.
+     * @param amount The amount to increase the advanced net yield by.
      *
-     * Emits a {LiabilityUpdated} event.
+     * Emits a {NetYieldAdvanced} event.
      */
-    function _increaseLiability(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
-        _checkLiabilityOperationParameters(account, amount);
+    function _increaseAdvancedNetYield(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
+        _checkAdvancedNetYieldOperationParameters(account, amount);
 
-        Liability storage liability = $.liabilities[account];
-        uint256 oldLiability = liability.amount;
+        AdvancedNetYield storage advancedNetYield = $.advancedNetYields[account];
+        uint256 oldAdvancedNetYield = advancedNetYield.current;
 
-        uint256 newLiability = uint64(oldLiability) + uint64(amount); // Panic if result is larger than 64 bits
-        liability.amount = uint64(newLiability);
-        $.totalLiability += amount;
+        uint256 newAdvancedNetYield = uint64(oldAdvancedNetYield) + uint64(amount); // Panic if result is larger than 64 bits
+        advancedNetYield.current = uint64(newAdvancedNetYield);
+        advancedNetYield.total += uint64(amount);
+        $.totalAdvanceYield += amount;
 
-        emit LiabilityUpdated(account, newLiability, oldLiability);
+        emit NetYieldAdvanced(account, amount);
     }
 
     /**
-     * @dev Decreases the liability of an account.
+     * @dev Decreases the advanced net yield balance of an account.
      *
      * Requirements:
      *
      * - The account address must not be zero.
      * - The amount must not be zero.
      * - The amount must not exceed the maximum uint64 value.
-     * - The amount must not exceed the current liability of the account.
+     * - The amount must not exceed the current advanced net yield balance of the account.
      *
-     * @param account The account to decrease the liability for.
-     * @param amount The amount to decrease the liability by.
+     * @param account The account to decrease the advanced net yield for.
+     * @param amount The amount to decrease the advanced net yield by.
      *
-     * Emits a {LiabilityUpdated} event.
+     * Emits a {NetYieldReduced} event.
      */
-    function _decreaseLiability(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
-        _checkLiabilityOperationParameters(account, amount);
+    function _reduceAdvanceNetYield(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
+        _checkAdvancedNetYieldOperationParameters(account, amount);
 
-        Liability storage liability = $.liabilities[account];
-        uint256 oldLiability = liability.amount;
+        AdvancedNetYield storage advancedNetYield = $.advancedNetYields[account];
+        uint256 oldAdvancedNetYield = advancedNetYield.current;
 
-        if (amount > oldLiability) {
+        if (amount > oldAdvancedNetYield) {
             revert NetYieldDistributor_DecreaseAmountExcess();
         }
 
         // Safe to use unchecked here because:
-        // 1. We've verified that amount <= oldLiability above
-        // 2. data.totalLiability >= liability.amount by definition
-        uint256 newLiability;
+        // 1. We've verified that amount <= oldAdvancedNetYield above
+        // 2. data.totalAdvanceYield >= advancedNetYield.current by definition
+        uint256 newAdvancedNetYield;
         unchecked {
-            newLiability = oldLiability - amount;
-            liability.amount = uint64(newLiability);
-            $.totalLiability -= amount;
+            newAdvancedNetYield = oldAdvancedNetYield - amount;
+            advancedNetYield.current = uint64(newAdvancedNetYield);
+            $.totalAdvanceYield -= amount;
         }
 
-        emit LiabilityUpdated(account, newLiability, oldLiability);
+        emit NetYieldReduced(account, amount);
     }
 
     /**
-     * @dev Checks the parameters of the liability increase/decrease operation.
-     * @param account The account to update the liability for.
-     * @param amount The amount to update the liability by.
+     * @dev Checks the parameters of the advanced net yield operation.
+     * @param account The account to update the advanced net yield for.
+     * @param amount The amount to update the advanced net yield by.
      */
-    function _checkLiabilityOperationParameters(address account, uint256 amount) internal pure {
+    function _checkAdvancedNetYieldOperationParameters(address account, uint256 amount) internal pure {
         if (account == address(0)) {
             revert NetYieldDistributor_AccountAddressZero();
         }

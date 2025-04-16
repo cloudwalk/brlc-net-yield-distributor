@@ -5,108 +5,118 @@ pragma solidity ^0.8.4;
 /**
  * @title INetYieldDistributorPrimary interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the primary interface of the asset yield contract.
+ * @dev Defines the primary interface of the net yield distributor contract.
  */
 interface INetYieldDistributorPrimary {
     // ------------------ Events----------------------------------- //
 
     /**
-     * @dev Emitted when the yield asset has been minted.
+     * @dev Emitted when asset yield tokens are minted.
      *
-     * @param amount The amount of yield asset that has been minted.
+     * @param amount The amount of asset yield tokens that were minted.
      */
-    event YieldMinted(uint256 amount);
+    event AssetYieldMinted(uint256 amount);
 
     /**
-     * @dev Emitted when the yield asset has been burned.
+     * @dev Emitted when asset yield tokens are burned.
      *
-     * @param amount The amount of yield asset that has been burned.
+     * @param amount The amount of asset yield tokens that were burned.
      */
-    event YieldBurned(uint256 amount);
+    event AssetYieldBurned(uint256 amount);
 
     /**
-     * @dev Emitted when the liability of an account has been updated.
+     * @dev Emitted when net yield is advanced to an account.
      *
-     * @param account The account whose liability has been updated.
-     * @param newLiability The new liability of the account.
-     * @param oldLiability The previous liability of the account.
+     * @param account The account that received the advanced net yield.
+     * @param amount The amount of net yield advanced to the account.
      */
-    event LiabilityUpdated(address indexed account, uint256 newLiability, uint256 oldLiability);
+    event NetYieldAdvanced(address indexed account, uint256 amount);
+
+    /**
+     * @dev Emitted when advanced net yield is reduced for an account.
+     *
+     * @param account The account that had its advanced net yield reduced.
+     * @param amount The amount by which the advanced net yield was reduced.
+     */
+    event NetYieldReduced(address indexed account, uint256 amount);
 
     // ------------------ Transactional functions ----------------- //
 
     /**
-     * @dev Mints a specified amount of underlying tokens as yield asset.
+     * @dev Mints a specified amount of asset yield tokens to the contract.
      *
-     * This function can be called only by an account with a special role.
+     * This function can only be called by an account with the appropriate role.
      *
-     * @param amount The amount of yield asset to mint.
+     * Emits an {AssetYieldMinted} event.
+     *
+     * @param amount The amount of asset yield tokens to mint.
      */
-    function mintYield(uint256 amount) external;
+    function mintAssetYield(uint256 amount) external;
 
     /**
-     * @dev Burns a specified amount of underlying tokens as yield asset.
+     * @dev Burns a specified amount of asset yield tokens from the contract.
      *
-     * This function can be called only by an account with a special role.
+     * This function can only be called by an account with the appropriate role.
      *
-     * @param amount The amount of yield asset to burn.
+     * Emits an {AssetYieldBurned} event.
+     *
+     * @param amount The amount of asset yield tokens to burn.
      */
-    function burnYield(uint256 amount) external;
+    function burnAssetYield(uint256 amount) external;
 
     /**
-     * @dev Transfers a specified amount of tokens from the contract to an account and
-     * increases the liability of the account.
+     * @dev Advances net yield to specified accounts by transferring asset yield tokens.
      *
-     * This function can be called only by an account with a special role.
+     * This function can only be called by an account with the appropriate role.
      *
-     * Emits multiple {LiabilityUpdated} events.
+     * Emits a {NetYieldAdvanced} event for each account that receives net yield.
      *
-     * @param accounts The accounts to transfer the tokens to.
-     * @param amounts The amounts of tokens to transfer.
+     * @param accounts The accounts to advance net yield to.
+     * @param amounts The amounts of net yield to advance to each account.
      */
-    function transferWithLiability(address[] calldata accounts, uint256[] calldata amounts) external;
+    function advanceNetYield(address[] calldata accounts, uint256[] calldata amounts) external;
 
     /**
-     * @dev Decreases the liability of an account by a specified amount.
+     * @dev Reduces the advanced net yield balance of specified accounts.
      *
-     * This function can be called only by an account with a special role.
+     * This function can only be called by an account with the appropriate role.
      *
-     * Emits multiple {LiabilityUpdated} events.
+     * Emits a {NetYieldReduced} event for each account whose advanced net yield is reduced.
      *
-     * @param accounts The accounts to decrease the liability for.
-     * @param amounts The amounts to decrease the liability by.
+     * @param accounts The accounts to reduce the advanced net yield for.
+     * @param amounts The amounts to reduce for each account.
      */
-    function decreaseLiability(address[] calldata accounts, uint256[] calldata amounts) external;
+    function reduceAdvanceNetYield(address[] calldata accounts, uint256[] calldata amounts) external;
 
     // ------------------ View functions -------------------------- //
 
     /**
-     * @dev Returns the liability of an account.
+     * @dev Returns the amount of advanced net yield for an account.
      *
-     * @param account The account to get the liability of.
-     * @return The liability of the account.
+     * @param account The account to query.
+     * @return The amount of advanced net yield for the account.
      */
-    function liabilityOf(address account) external view returns (uint256);
+    function advanceNetYieldOf(address account) external view returns (uint256);
 
     /**
-     * @dev Returns the total supply of yield asset.
+     * @dev Returns the total supply of asset yield tokens.
      *
-     * @return The total supply of yield asset.
+     * @return The total supply of asset yield tokens.
      */
-    function totalYieldSupply() external view returns (uint256);
+    function totalNetYieldSupply() external view returns (uint256);
 
     /**
-     * @dev Returns the total liability of all accounts.
+     * @dev Returns the total amount of advanced net yield across all accounts.
      *
-     * @return The total liability of all accounts.
+     * @return The total amount of advanced net yield.
      */
-    function totalLiability() external view returns (uint256);
+    function totalAdvanceYield() external view returns (uint256);
 }
 
 /**
  * @title INetYieldDistributorConfiguration interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the configuration interface of the asset yield contract.
+ * @dev Defines the configuration interface of the net yield distributor contract.
  */
 interface INetYieldDistributorConfiguration {
     // ------------------ View functions -------------------------- //
@@ -122,7 +132,7 @@ interface INetYieldDistributorConfiguration {
 /**
  * @title INetYieldDistributorErrors interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the errors of the asset yield contract.
+ * @dev Defines the errors of the net yield distributor contract.
  */
 interface INetYieldDistributorErrors {
     /// @dev Thrown if the implementation address is invalid during an upgrade.
@@ -134,13 +144,13 @@ interface INetYieldDistributorErrors {
     /// @dev Thrown if the accounts and amounts arrays have different lengths.
     error NetYieldDistributor_AccountsAndAmountsLengthMismatch();
 
-    /// @dev Thrown if the address of the account is zero.
+    /// @dev Thrown if the account address is zero.
     error NetYieldDistributor_AccountAddressZero();
 
-    /// @dev Thrown if the amount is zero when its not allowed.
+    /// @dev Thrown if the amount is zero when a non-zero amount is required.
     error NetYieldDistributor_AmountZero();
 
-    /// @dev Thrown if the decrease amount exceeds the current liability of an account.
+    /// @dev Thrown if the decrease amount exceeds the current advanced net yield balance of an account.
     error NetYieldDistributor_DecreaseAmountExcess();
 
     /// @dev Thrown if the amount is too large to be stored in a uint64.
@@ -150,14 +160,18 @@ interface INetYieldDistributorErrors {
 /**
  * @title INetYieldDistributor interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev The full interface of the asset yield contract.
+ * @dev The complete interface of the net yield distributor contract.
  */
-interface INetYieldDistributor is INetYieldDistributorPrimary, INetYieldDistributorConfiguration, INetYieldDistributorErrors {
+interface INetYieldDistributor is
+    INetYieldDistributorPrimary,
+    INetYieldDistributorConfiguration,
+    INetYieldDistributorErrors
+{
     /**
-     * @dev Proves the contract is the asset yield one.
+     * @dev Provides a way to verify this is the correct net yield distributor contract.
      *
-     * It is used for simple contract compliance checks, e.g. during an upgrade.
-     * This avoids situations where a wrong contract address is specified by mistake.
+     * Used for contract compliance checks, particularly during upgrades.
+     * This helps prevent errors where an incorrect contract address might be specified.
      */
     function proveNetYieldDistributor() external pure;
 }

@@ -5,20 +5,22 @@ pragma solidity ^0.8.0;
 /**
  * @title INetYieldDistributorTypes interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev Defines the types used in the asset liability contract.
+ * @dev Defines the types used in the net yield distributor contract.
  */
 interface INetYieldDistributorTypes {
     /**
-     * @dev Defines the liability structure.
+     * @dev Defines the advanced net yield structure.
      *
      * The fields:
      *
-     * - amount -- The amount of liability for an account.
+     * - current -- The current amount of advanced net yield for an account.
+     * - total ---- The total amount of advanced net yield for an account.
      */
-    struct Liability {
+    struct AdvancedNetYield {
         // Slot 1
 
-        uint64 amount;
-        // uint192 __reserved; // Reserved for future use until the end of the storage slot
+        uint64 current;
+        uint64 total;
+        // uint128 __reserved; // Reserved for future use until the end of the storage slot
     }
 }
