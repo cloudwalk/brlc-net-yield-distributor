@@ -119,7 +119,37 @@ interface INetYieldDistributorPrimary {
  * @dev Defines the configuration interface of the net yield distributor contract.
  */
 interface INetYieldDistributorConfiguration {
+    // ------------------ Events ---------------------------------- //
+
+    /**
+     * @dev Emitted when the address of the operational treasury has been updated.
+     *
+     * @param newTreasury The new address of the operational treasury.
+     * @param oldTreasury The previous address of the operational treasury.
+     */
+    event OperationalTreasuryUpdated(address indexed newTreasury, address indexed oldTreasury);
+
+    // ------------------ Transactional functions ----------------- //
+
+    /**
+     * @dev Sets the address of the operational treasury.
+     *
+     * This function can be called only by an account with a special role.
+     *
+     * Emits a {OperationalTreasuryUpdated} event.
+     *
+     * @param operationalTreasury_ The address of the operational treasury.
+     */
+    function setOperationalTreasury(address operationalTreasury_) external;
+
     // ------------------ View functions -------------------------- //
+
+    /**
+     * @dev Returns the address of the operational treasury.
+     *
+     * @return The address of the operational treasury.
+     */
+    function operationalTreasury() external view returns (address);
 
     /**
      * @dev Returns the address of the underlying token contract.
@@ -135,6 +165,9 @@ interface INetYieldDistributorConfiguration {
  * @dev Defines the errors of the net yield distributor contract.
  */
 interface INetYieldDistributorErrors {
+    /// @dev Thrown if the treasury address provided is already set.
+    error NetYieldDistributor_TreasuryAddressAlreadySet();
+
     /// @dev Thrown if the implementation address is invalid during an upgrade.
     error NetYieldDistributor_ImplementationAddressInvalid();
 

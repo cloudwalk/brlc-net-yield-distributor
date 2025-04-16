@@ -19,10 +19,11 @@ const ROLES = {
 };
 
 const EVENTS = {
-  NetYieldAdvanced: "NetYieldAdvanced",
-  NetYieldReduced: "NetYieldReduced",
+  OperationalTreasuryUpdated: "OperationalTreasuryUpdated",
   AssetYieldMinted: "AssetYieldMinted",
-  AssetYieldBurned: "AssetYieldBurned"
+  AssetYieldBurned: "AssetYieldBurned",
+  NetYieldAdvanced: "NetYieldAdvanced",
+  NetYieldReduced: "NetYieldReduced"
 };
 
 const ERRORS = {
@@ -30,6 +31,7 @@ const ERRORS = {
   NetYieldDistributor_AccessControlUnauthorizedAccount: "AccessControlUnauthorizedAccount",
   NetYieldDistributor_ImplementationAddressInvalid: "NetYieldDistributor_ImplementationAddressInvalid",
   NetYieldDistributor_UnderlyingTokenAddressZero: "NetYieldDistributor_UnderlyingTokenAddressZero",
+  NetYieldDistributor_TreasuryAddressAlreadySet: "NetYieldDistributor_TreasuryAddressAlreadySet",
   NetYieldDistributor_AccountsAndAmountsLengthMismatch: "NetYieldDistributor_AccountsAndAmountsLengthMismatch",
   NetYieldDistributor_AccountAddressZero: "NetYieldDistributor_AccountAddressZero",
   NetYieldDistributor_AmountZero: "NetYieldDistributor_AmountZero",
@@ -39,6 +41,7 @@ const ERRORS = {
 };
 
 const ADDRESS_ZERO = ethers.ZeroAddress;
+const ALLOWANCE_MAX = ethers.MaxUint256;
 
 const LIABILITY_AMOUNT = 12_345_678n;
 const LIABILITY_AMOUNTS: bigint[] = [
@@ -69,13 +72,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
   let deployer: HardhatEthersSigner;
   let minter: HardhatEthersSigner;
   let manager: HardhatEthersSigner;
+  let treasury: HardhatEthersSigner;
   let stranger: HardhatEthersSigner;
   let user: HardhatEthersSigner;
   let users: HardhatEthersSigner[];
 
   before(async () => {
     let moreUsers: HardhatEthersSigner[];
-    [deployer, minter, manager, stranger, user, ...moreUsers] = await ethers.getSigners();
+    [deployer, minter, manager, treasury, stranger, user, ...moreUsers] = await ethers.getSigners();
     users = [user, ...moreUsers];
 
     // The contract factories with the explicitly specified deployer account
@@ -120,6 +124,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
     await proveTx(assetYield.grantRole(ROLES.MINTER_ROLE, minter.address));
     await proveTx(assetYield.grantRole(ROLES.MANAGER_ROLE, manager.address));
+    await proveTx(assetYield.setOperationalTreasury(treasury.address));
+
+    // Mint initial balances
+    await proveTx(tokenMock.mint(treasury.address, YIELD_AMOUNT));
+
+    // Approvals
+    await proveTx(connect(tokenMock, treasury).approve(getAddress(assetYield), ALLOWANCE_MAX));
 
     return fixture;
   }
@@ -156,6 +167,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
       expect(await assetYield.hasRole(ROLES.PAUSER_ROLE, deployer.address)).to.equal(false);
 
       // Verify initial state values
+      expect(await assetYield.operationalTreasury()).to.equal(ADDRESS_ZERO);
       expect(await assetYield.totalNetYieldSupply()).to.equal(0);
       expect(await assetYield.totalAdvanceYield()).to.equal(0);
     });
@@ -222,6 +234,53 @@ describe("Contract 'NetYieldDistributor'", async () => {
       // Execute and verify version
       const assetYieldVersion = await assetYield.$__VERSION();
       checkEquality(assetYieldVersion, EXPECTED_VERSION);
+    });
+  });
+
+  describe("Function 'setOperationalTreasury()'", async () => {
+    it("Executes as expected and emits the correct event", async () => {
+      const { assetYield } = await setUpFixture(deployContracts);
+
+      // Check it can be set to a non-zero address
+      await expect(assetYield.setOperationalTreasury(treasury.address))
+        .to.emit(assetYield, EVENTS.OperationalTreasuryUpdated)
+        .withArgs(treasury.address, ADDRESS_ZERO);
+      expect(await assetYield.operationalTreasury()).to.eq(treasury.address);
+
+      // Check it can be set to a zero address
+      await expect(assetYield.setOperationalTreasury(ADDRESS_ZERO))
+        .to.emit(assetYield, EVENTS.OperationalTreasuryUpdated)
+        .withArgs(ADDRESS_ZERO, treasury.address);
+      expect(await assetYield.operationalTreasury()).to.eq(ADDRESS_ZERO);
+    });
+
+    it("Is reverted if caller does not have the owner role", async () => {
+      const { assetYield } = await setUpFixture(deployContracts);
+
+      await expect(connect(assetYield, stranger).setOperationalTreasury(treasury.address))
+        .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
+        .withArgs(stranger.address, ROLES.OWNER_ROLE);
+
+      // An account with the manager role cannot do that too
+      await proveTx(assetYield.grantRole(ROLES.MANAGER_ROLE, manager.address));
+      await expect(connect(assetYield, manager).setOperationalTreasury(treasury.address))
+        .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
+        .withArgs(manager.address, ROLES.OWNER_ROLE);
+    });
+
+    it("Is reverted if the new treasury address is the same as the previous one", async () => {
+      const { assetYield } = await setUpFixture(deployContracts);
+
+      // Check for the zero treasury address first
+      await expect(assetYield.setOperationalTreasury(ADDRESS_ZERO))
+        .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_TreasuryAddressAlreadySet);
+
+      // Set the treasury
+      await proveTx(assetYield.setOperationalTreasury(treasury.address));
+
+      // Now try to set it to the same address
+      await expect(assetYield.setOperationalTreasury(treasury.address))
+        .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_TreasuryAddressAlreadySet);
     });
   });
 

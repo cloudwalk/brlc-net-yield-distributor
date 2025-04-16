@@ -89,6 +89,26 @@ contract NetYieldDistributor is
     // ------------------ Transactional functions ----------------- //
 
     /**
+     * @inheritdoc INetYieldDistributorConfiguration
+     *
+     * @dev Requirements:
+     *
+     * - The caller must have the {OWNER_ROLE} role.
+     * - The new treasury address must not be the same as currently set.
+     */
+    function setOperationalTreasury(address operationalTreasury_) external onlyRole(OWNER_ROLE) {
+        NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
+
+        if (operationalTreasury_ == $.operationalTreasury) {
+            revert NetYieldDistributor_TreasuryAddressAlreadySet();
+        }
+
+        emit OperationalTreasuryUpdated(operationalTreasury_, $.operationalTreasury);
+
+        $.operationalTreasury = operationalTreasury_;
+    }
+
+    /**
      * @inheritdoc INetYieldDistributorPrimary
      *
      * @dev Requirements:
@@ -168,6 +188,7 @@ contract NetYieldDistributor is
      * - None of the amounts can be zero.
      * - None of the amounts can exceed the maximum uint64 value.
      * - None of the amounts can exceed the current advanced net yield balance of the respective account.
+     * - The treasury must have sufficient tokens to cover the reduction and the burn.
      */
     function reduceAdvanceNetYield(
         address[] calldata accounts,
@@ -200,6 +221,13 @@ contract NetYieldDistributor is
      */
     function underlyingToken() external view returns (address) {
         return _getNetYieldDistributorStorage().underlyingToken;
+    }
+
+    /**
+     * @inheritdoc INetYieldDistributorConfiguration
+     */
+    function operationalTreasury() external view returns (address) {
+        return _getNetYieldDistributorStorage().operationalTreasury;
     }
 
     /**

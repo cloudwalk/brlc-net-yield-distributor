@@ -36,6 +36,7 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
      * The fields:
      *
      * - underlyingToken ------ The address of the underlying token contract.
+     * - operationalTreasury -- The address of the operational treasury wallet.
      * - totalNetYieldSupply -- The total supply of asset yield tokens in circulation.
      * - totalAdvanceYield ---- The sum of all advanced net yield balances for all accounts.
      * - advancedNetYields ---- The mapping of advanced net yield for a given account.
@@ -48,12 +49,16 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
         // uint96 __reserved1; // Reserved for future use until the end of the storage slot
 
         // Slot 2
-        uint256 totalNetYieldSupply;
+        address operationalTreasury;
+        // uint96 __reserved2; // Reserved for future use until the end of the storage slot
 
         // Slot 3
-        uint256 totalAdvanceYield;
+        uint256 totalNetYieldSupply;
 
         // Slot 4
+        uint256 totalAdvanceYield;
+
+        // Slot 5
         mapping(address account => AdvancedNetYield) advancedNetYields;
     }
 
