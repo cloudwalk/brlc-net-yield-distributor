@@ -25,15 +25,15 @@ const EVENTS = {
 };
 
 const ERRORS = {
-  AssetYield_InvalidInitialization: "InvalidInitialization",
-  AssetYield_AccessControlUnauthorizedAccount: "AccessControlUnauthorizedAccount",
-  AssetYield_ImplementationAddressInvalid: "AssetYield_ImplementationAddressInvalid",
-  AssetYield_UnderlyingTokenAddressZero: "AssetYield_UnderlyingTokenAddressZero",
-  AssetYield_AccountsAndAmountsLengthMismatch: "AssetYield_AccountsAndAmountsLengthMismatch",
-  AssetYield_AccountAddressZero: "AssetYield_AccountAddressZero",
-  AssetYield_AmountZero: "AssetYield_AmountZero",
-  AssetYield_DecreaseAmountExcess: "AssetYield_DecreaseAmountExcess",
-  AssetYield_AmountOverflow: "AssetYield_AmountOverflow",
+  NetYieldDistributor_InvalidInitialization: "InvalidInitialization",
+  NetYieldDistributor_AccessControlUnauthorizedAccount: "AccessControlUnauthorizedAccount",
+  NetYieldDistributor_ImplementationAddressInvalid: "NetYieldDistributor_ImplementationAddressInvalid",
+  NetYieldDistributor_UnderlyingTokenAddressZero: "NetYieldDistributor_UnderlyingTokenAddressZero",
+  NetYieldDistributor_AccountsAndAmountsLengthMismatch: "NetYieldDistributor_AccountsAndAmountsLengthMismatch",
+  NetYieldDistributor_AccountAddressZero: "NetYieldDistributor_AccountAddressZero",
+  NetYieldDistributor_AmountZero: "NetYieldDistributor_AmountZero",
+  NetYieldDistributor_DecreaseAmountExcess: "NetYieldDistributor_DecreaseAmountExcess",
+  NetYieldDistributor_AmountOverflow: "NetYieldDistributor_AmountOverflow",
   EnforcedPause: "EnforcedPause"
 };
 
@@ -62,7 +62,7 @@ interface Fixture {
   tokenMock: Contract;
 }
 
-describe("Contract 'AssetYield'", async () => {
+describe("Contract 'NetYieldDistributor'", async () => {
   let assetYieldFactory: ContractFactory;
 
   let deployer: HardhatEthersSigner;
@@ -78,7 +78,7 @@ describe("Contract 'AssetYield'", async () => {
     users = [user, ...moreUsers];
 
     // The contract factories with the explicitly specified deployer account
-    assetYieldFactory = await ethers.getContractFactory("AssetYield");
+    assetYieldFactory = await ethers.getContractFactory("NetYieldDistributor");
     assetYieldFactory = assetYieldFactory.connect(deployer);
   });
 
@@ -166,12 +166,12 @@ describe("Contract 'AssetYield'", async () => {
       // Verify error on second initialization
       await expect(
         assetYield.initialize(getAddress(tokenMock))
-      ).to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_InvalidInitialization);
+      ).to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_InvalidInitialization);
     });
 
     it("Is reverted if passed token address is zero", async () => {
       // Setup contract without initialization
-      const anotherAssetYieldContract: Contract = await upgrades.deployProxy(
+      const anotherNetYieldDistributorContract: Contract = await upgrades.deployProxy(
         assetYieldFactory,
         [],
         { initializer: false }
@@ -179,8 +179,8 @@ describe("Contract 'AssetYield'", async () => {
 
       // Verify error when initializing with zero address
       await expect(
-        anotherAssetYieldContract.initialize(ADDRESS_ZERO)
-      ).to.be.revertedWithCustomError(assetYieldFactory, ERRORS.AssetYield_UnderlyingTokenAddressZero);
+        anotherNetYieldDistributorContract.initialize(ADDRESS_ZERO)
+      ).to.be.revertedWithCustomError(assetYieldFactory, ERRORS.NetYieldDistributor_UnderlyingTokenAddressZero);
     });
   });
 
@@ -199,7 +199,7 @@ describe("Contract 'AssetYield'", async () => {
 
       // Verify error when non-owner tries to upgrade
       await expect(connect(assetYield, stranger).upgradeToAndCall(getAddress(assetYield), "0x"))
-        .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+        .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
         .withArgs(stranger.address, ROLES.OWNER_ROLE);
     });
 
@@ -209,7 +209,7 @@ describe("Contract 'AssetYield'", async () => {
 
       // Verify error when using invalid implementation
       await expect(assetYield.upgradeToAndCall(getAddress(tokenMock), "0x"))
-        .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_ImplementationAddressInvalid);
+        .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_ImplementationAddressInvalid);
     });
   });
 
@@ -338,11 +338,11 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify errors for different callers
         await expect(connect(assetYield, stranger).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
 
         await expect(connect(assetYield, deployer).transferWithLiability([user.address], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
 
@@ -370,10 +370,10 @@ describe("Contract 'AssetYield'", async () => {
         const amounts = [LIABILITY_AMOUNT];
 
         await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccountsAndAmountsLengthMismatch);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
 
         await expect(connect(assetYield, manager).transferWithLiability([], amounts))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccountsAndAmountsLengthMismatch);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
       });
 
       it("Account address is zero", async () => {
@@ -386,7 +386,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccountAddressZero);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountAddressZero);
       });
 
       it("Amount is zero", async () => {
@@ -399,7 +399,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AmountZero);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountZero);
       });
 
       it("Amount exceeds uint64 max value", async () => {
@@ -413,7 +413,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, manager).transferWithLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AmountOverflow);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountOverflow);
       });
 
       it("Result liability exceeds uint64 max value", async () => {
@@ -563,7 +563,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, manager).decreaseLiability(accounts, amounts))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccountsAndAmountsLengthMismatch);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
       });
 
       it("Caller lacks `MANAGER_ROLE`", async () => {
@@ -572,7 +572,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, stranger).decreaseLiability([user.address], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
       });
 
@@ -582,7 +582,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, manager).decreaseLiability([ADDRESS_ZERO], [LIABILITY_AMOUNT]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccountAddressZero);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccountAddressZero);
       });
 
       it("Amount is zero", async () => {
@@ -591,7 +591,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify error
         await expect(connect(assetYield, manager).decreaseLiability([user.address], [0]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AmountZero);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountZero);
       });
 
       it("Decrease amount exceeds current liability", async () => {
@@ -608,7 +608,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Try to decrease more than the current liability
         await expect(connect(assetYield, manager).decreaseLiability([account], [excessAmount]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_DecreaseAmountExcess);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_DecreaseAmountExcess);
       });
 
       it("Amount exceeds uint64 max value", async () => {
@@ -626,7 +626,7 @@ describe("Contract 'AssetYield'", async () => {
 
         // Now try to decrease with an amount that exceeds uint64 max
         await expect(connect(assetYield, manager).decreaseLiability([account], [overflowAmount]))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AmountOverflow);
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AmountOverflow);
       });
 
       it("Contract is paused", async () => {
@@ -700,11 +700,11 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify errors for different callers
         await expect(connect(assetYield, stranger).mintYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MINTER_ROLE);
 
         await expect(connect(assetYield, manager).mintYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(manager.address, ROLES.MINTER_ROLE);
       });
 
@@ -782,11 +782,11 @@ describe("Contract 'AssetYield'", async () => {
 
         // Verify errors for different callers
         await expect(connect(assetYield, stranger).burnYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MINTER_ROLE);
 
         await expect(connect(assetYield, manager).burnYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(assetYield, ERRORS.AssetYield_AccessControlUnauthorizedAccount)
+          .to.be.revertedWithCustomError(assetYield, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(manager.address, ROLES.MINTER_ROLE);
       });
 

@@ -11,26 +11,26 @@ import { RescuableUpgradeable } from "./base/RescuableUpgradeable.sol";
 import { UUPSExtUpgradeable } from "./base/UUPSExtUpgradeable.sol";
 import { Versionable } from "./base/Versionable.sol";
 
-import { AssetYieldStorageLayout } from "./AssetYieldStorageLayout.sol";
+import { NetYieldDistributorStorageLayout } from "./NetYieldDistributorStorageLayout.sol";
 
-import { IAssetYield } from "./interfaces/IAssetYield.sol";
-import { IAssetYieldPrimary } from "./interfaces/IAssetYield.sol";
-import { IAssetYieldConfiguration } from "./interfaces/IAssetYield.sol";
+import { INetYieldDistributor } from "./interfaces/INetYieldDistributor.sol";
+import { INetYieldDistributorPrimary } from "./interfaces/INetYieldDistributor.sol";
+import { INetYieldDistributorConfiguration } from "./interfaces/INetYieldDistributor.sol";
 import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 /**
- * @title AssetYield contract
+ * @title NetYieldDistributor contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev The contract that manages the asset yield of accounts.
  */
-contract AssetYield is
-    AssetYieldStorageLayout,
+contract NetYieldDistributor is
+    NetYieldDistributorStorageLayout,
     AccessControlExtUpgradeable,
     PausableExtUpgradeable,
     RescuableUpgradeable,
     UUPSExtUpgradeable,
     Versionable,
-    IAssetYield
+    INetYieldDistributor
 {
     // ------------------ Constructor ----------------------------- //
 
@@ -61,7 +61,7 @@ contract AssetYield is
         __PausableExt_init_unchained(OWNER_ROLE);
         __Rescuable_init_unchained(OWNER_ROLE);
         __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __AssetYield_init_unchained(underlyingToken_);
+        __NetYieldDistributor_init_unchained(underlyingToken_);
     }
 
     /**
@@ -73,23 +73,23 @@ contract AssetYield is
      *
      * @param underlyingToken_ The address of the token to set as the underlying one.
      */
-    function __AssetYield_init_unchained(address underlyingToken_) internal {
+    function __NetYieldDistributor_init_unchained(address underlyingToken_) internal {
         _setRoleAdmin(OWNER_ROLE, OWNER_ROLE);
         _setRoleAdmin(MINTER_ROLE, OWNER_ROLE);
         _setRoleAdmin(MANAGER_ROLE, OWNER_ROLE);
         _grantRole(OWNER_ROLE, _msgSender());
 
         if (underlyingToken_ == address(0)) {
-            revert AssetYield_UnderlyingTokenAddressZero();
+            revert NetYieldDistributor_UnderlyingTokenAddressZero();
         }
 
-        _getAssetYieldStorage().underlyingToken = underlyingToken_;
+        _getNetYieldDistributorStorage().underlyingToken = underlyingToken_;
     }
 
     // ------------------ Transactional functions ----------------- //
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      *
      * @dev Requirements:
      *
@@ -97,7 +97,7 @@ contract AssetYield is
      * - The caller must have the {MINTER_ROLE} role.
      */
     function mintYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
-        AssetYieldStorage storage $ = _getAssetYieldStorage();
+        NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).mint(address(this), amount);
         $.totalYieldSupply += amount;
@@ -106,7 +106,7 @@ contract AssetYield is
     }
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      *
      * @dev Requirements:
      *
@@ -115,7 +115,7 @@ contract AssetYield is
      * - The contract must have sufficient token balance to cover the burn.
      */
     function burnYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
-        AssetYieldStorage storage $ = _getAssetYieldStorage();
+        NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).burn(amount);
         $.totalYieldSupply -= amount;
@@ -124,14 +124,14 @@ contract AssetYield is
     }
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      */
     function totalYieldSupply() external view returns (uint256) {
-        return _getAssetYieldStorage().totalYieldSupply;
+        return _getNetYieldDistributorStorage().totalYieldSupply;
     }
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      *
      * @dev Requirements:
      *
@@ -150,10 +150,10 @@ contract AssetYield is
         uint256 length = accounts.length;
 
         if (length != amounts.length) {
-            revert AssetYield_AccountsAndAmountsLengthMismatch();
+            revert NetYieldDistributor_AccountsAndAmountsLengthMismatch();
         }
 
-        AssetYieldStorage storage $ = _getAssetYieldStorage();
+        NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         for (uint256 i = 0; i < length; ) {
             _transferWithLiability($, accounts[i], amounts[i]);
@@ -164,7 +164,7 @@ contract AssetYield is
     }
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      *
      * @dev Requirements:
      *
@@ -183,10 +183,10 @@ contract AssetYield is
         uint256 length = accounts.length;
 
         if (length != amounts.length) {
-            revert AssetYield_AccountsAndAmountsLengthMismatch();
+            revert NetYieldDistributor_AccountsAndAmountsLengthMismatch();
         }
 
-        AssetYieldStorage storage $ = _getAssetYieldStorage();
+        NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
         uint256 totalAmount = 0;
 
         for (uint256 i = 0; i < length; ) {
@@ -203,30 +203,30 @@ contract AssetYield is
     // ------------------ View functions -------------------------- //
 
     /**
-     * @inheritdoc IAssetYieldConfiguration
+     * @inheritdoc INetYieldDistributorConfiguration
      */
     function underlyingToken() external view returns (address) {
-        return _getAssetYieldStorage().underlyingToken;
+        return _getNetYieldDistributorStorage().underlyingToken;
     }
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      */
     function liabilityOf(address account) external view returns (uint256) {
-        return _getAssetYieldStorage().liabilities[account].amount;
+        return _getNetYieldDistributorStorage().liabilities[account].amount;
     }
 
     /**
-     * @inheritdoc IAssetYieldPrimary
+     * @inheritdoc INetYieldDistributorPrimary
      */
     function totalLiability() external view returns (uint256) {
-        return _getAssetYieldStorage().totalLiability;
+        return _getNetYieldDistributorStorage().totalLiability;
     }
 
     // ------------------ Pure functions -------------------------- //
 
-    /// @inheritdoc IAssetYield
-    function proveAssetYield() external pure {}
+    /// @inheritdoc INetYieldDistributor
+    function proveNetYieldDistributor() external pure {}
 
     // ------------------ Internal functions ---------------------- //
 
@@ -245,7 +245,7 @@ contract AssetYield is
      *
      * Emits a {LiabilityUpdated} event (via the _increaseLiability function).
      */
-    function _transferWithLiability(AssetYieldStorage storage $, address account, uint256 amount) internal {
+    function _transferWithLiability(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
         _increaseLiability($, account, amount);
         SafeERC20.safeTransfer(IERC20($.underlyingToken), account, amount);
     }
@@ -264,7 +264,7 @@ contract AssetYield is
      *
      * Emits a {LiabilityUpdated} event.
      */
-    function _increaseLiability(AssetYieldStorage storage $, address account, uint256 amount) internal {
+    function _increaseLiability(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
         _checkLiabilityOperationParameters(account, amount);
 
         Liability storage liability = $.liabilities[account];
@@ -292,14 +292,14 @@ contract AssetYield is
      *
      * Emits a {LiabilityUpdated} event.
      */
-    function _decreaseLiability(AssetYieldStorage storage $, address account, uint256 amount) internal {
+    function _decreaseLiability(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
         _checkLiabilityOperationParameters(account, amount);
 
         Liability storage liability = $.liabilities[account];
         uint256 oldLiability = liability.amount;
 
         if (amount > oldLiability) {
-            revert AssetYield_DecreaseAmountExcess();
+            revert NetYieldDistributor_DecreaseAmountExcess();
         }
 
         // Safe to use unchecked here because:
@@ -322,15 +322,15 @@ contract AssetYield is
      */
     function _checkLiabilityOperationParameters(address account, uint256 amount) internal pure {
         if (account == address(0)) {
-            revert AssetYield_AccountAddressZero();
+            revert NetYieldDistributor_AccountAddressZero();
         }
 
         if (amount == 0) {
-            revert AssetYield_AmountZero();
+            revert NetYieldDistributor_AmountZero();
         }
 
         if (amount > type(uint64).max) {
-            revert AssetYield_AmountOverflow();
+            revert NetYieldDistributor_AmountOverflow();
         }
     }
 
@@ -340,13 +340,13 @@ contract AssetYield is
      * Requirements:
      *
      * - The caller must have the {OWNER_ROLE} role.
-     * - The new implementation address must be a valid AssetYield contract.
+     * - The new implementation address must be a valid NetYieldDistributor contract.
      *
      * @param newImplementation The address of the new implementation.
      */
     function _validateUpgrade(address newImplementation) internal view override onlyRole(OWNER_ROLE) {
-        try IAssetYield(newImplementation).proveAssetYield() {} catch {
-            revert AssetYield_ImplementationAddressInvalid();
+        try INetYieldDistributor(newImplementation).proveNetYieldDistributor() {} catch {
+            revert NetYieldDistributor_ImplementationAddressInvalid();
         }
     }
 }

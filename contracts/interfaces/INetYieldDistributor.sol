@@ -3,11 +3,11 @@
 pragma solidity ^0.8.4;
 
 /**
- * @title IAssetYieldPrimary interface
+ * @title INetYieldDistributorPrimary interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev Defines the primary interface of the asset yield contract.
  */
-interface IAssetYieldPrimary {
+interface INetYieldDistributorPrimary {
     // ------------------ Events----------------------------------- //
 
     /**
@@ -104,11 +104,11 @@ interface IAssetYieldPrimary {
 }
 
 /**
- * @title IAssetYieldConfiguration interface
+ * @title INetYieldDistributorConfiguration interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev Defines the configuration interface of the asset yield contract.
  */
-interface IAssetYieldConfiguration {
+interface INetYieldDistributorConfiguration {
     // ------------------ View functions -------------------------- //
 
     /**
@@ -120,44 +120,44 @@ interface IAssetYieldConfiguration {
 }
 
 /**
- * @title IAssetYieldErrors interface
+ * @title INetYieldDistributorErrors interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev Defines the errors of the asset yield contract.
  */
-interface IAssetYieldErrors {
+interface INetYieldDistributorErrors {
     /// @dev Thrown if the implementation address is invalid during an upgrade.
-    error AssetYield_ImplementationAddressInvalid();
+    error NetYieldDistributor_ImplementationAddressInvalid();
 
     /// @dev Thrown if the underlying token address provided is zero.
-    error AssetYield_UnderlyingTokenAddressZero();
+    error NetYieldDistributor_UnderlyingTokenAddressZero();
 
     /// @dev Thrown if the accounts and amounts arrays have different lengths.
-    error AssetYield_AccountsAndAmountsLengthMismatch();
+    error NetYieldDistributor_AccountsAndAmountsLengthMismatch();
 
     /// @dev Thrown if the address of the account is zero.
-    error AssetYield_AccountAddressZero();
+    error NetYieldDistributor_AccountAddressZero();
 
     /// @dev Thrown if the amount is zero when its not allowed.
-    error AssetYield_AmountZero();
+    error NetYieldDistributor_AmountZero();
 
     /// @dev Thrown if the decrease amount exceeds the current liability of an account.
-    error AssetYield_DecreaseAmountExcess();
+    error NetYieldDistributor_DecreaseAmountExcess();
 
     /// @dev Thrown if the amount is too large to be stored in a uint64.
-    error AssetYield_AmountOverflow();
+    error NetYieldDistributor_AmountOverflow();
 }
 
 /**
- * @title IAssetYield interface
+ * @title INetYieldDistributor interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev The full interface of the asset yield contract.
  */
-interface IAssetYield is IAssetYieldPrimary, IAssetYieldConfiguration, IAssetYieldErrors {
+interface INetYieldDistributor is INetYieldDistributorPrimary, INetYieldDistributorConfiguration, INetYieldDistributorErrors {
     /**
      * @dev Proves the contract is the asset yield one.
      *
      * It is used for simple contract compliance checks, e.g. during an upgrade.
      * This avoids situations where a wrong contract address is specified by mistake.
      */
-    function proveAssetYield() external pure;
+    function proveNetYieldDistributor() external pure;
 }

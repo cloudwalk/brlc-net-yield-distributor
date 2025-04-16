@@ -3,11 +3,11 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title IAssetYieldTypes interface
+ * @title INetYieldDistributorTypes interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev Defines the types used in the asset liability contract.
  */
-interface IAssetYieldTypes {
+interface INetYieldDistributorTypes {
     /**
      * @dev Defines the liability structure.
      *

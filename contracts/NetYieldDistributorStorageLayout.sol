@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.18;
 
-import { IAssetYieldTypes } from "./interfaces/IAssetYieldTypes.sol";
+import { INetYieldDistributorTypes } from "./interfaces/INetYieldDistributorTypes.sol";
 
 /**
- * @title AssetYieldStorageLayout contract
+ * @title NetYieldDistributorStorageLayout contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev Defines the storage layout for the asset yield contract.
  */
-abstract contract AssetYieldStorageLayout is IAssetYieldTypes {
+abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes {
     // ------------------ Constants ------------------------------- //
 
     /// @dev The role of this contract owner.
@@ -25,7 +25,7 @@ abstract contract AssetYieldStorageLayout is IAssetYieldTypes {
 
     /*
      * ERC-7201: Namespaced Storage Layout
-     * keccak256(abi.encode(uint256(keccak256("cloudwalk.storage.AssetYield")) - 1)) & ~bytes32(uint256(0xff))
+     * keccak256(abi.encode(uint256(keccak256("cloudwalk.storage.NetYieldDistributor")) - 1)) & ~bytes32(uint256(0xff))
      */
     bytes32 private constant ASSET_YIELD_STORAGE_LOCATION =
         0x04649658641e694a55129f42214ab5272db9dc0c1f7e0cb89509224043caec00;
@@ -40,9 +40,9 @@ abstract contract AssetYieldStorageLayout is IAssetYieldTypes {
      * - totalLiability ------- The sum of all liabilities.
      * - liabilities ---------- The mapping of a liability for a given account.
      *
-     * @custom:storage-location erc7201:cloudwalk.storage.AssetYield
+     * @custom:storage-location erc7201:cloudwalk.storage.NetYieldDistributor
      */
-    struct AssetYieldStorage {
+    struct NetYieldDistributorStorage {
         // Slot 1
         address underlyingToken;
         // uint96 __reserved1; // Reserved for future use until the end of the storage slot
@@ -59,8 +59,8 @@ abstract contract AssetYieldStorageLayout is IAssetYieldTypes {
 
     // ------------------ Internal functions ---------------------- //
 
-    /// @dev Returns the storage slot location for the `AssetYieldStorage` struct.
-    function _getAssetYieldStorage() internal pure returns (AssetYieldStorage storage data) {
+    /// @dev Returns the storage slot location for the `NetYieldDistributorStorage` struct.
+    function _getNetYieldDistributorStorage() internal pure returns (NetYieldDistributorStorage storage data) {
         bytes32 position = ASSET_YIELD_STORAGE_LOCATION;
         assembly {
             data.slot := position
