@@ -169,6 +169,10 @@ contract NetYieldDistributor is
             revert NetYieldDistributor_AccountsAndAmountsLengthMismatch();
         }
 
+        if (accounts.length == 0) {
+            revert NetYieldDistributor_AccountsArrayEmpty();
+        }
+
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         for (uint256 i = 0; i < length; ) {
@@ -201,6 +205,10 @@ contract NetYieldDistributor is
 
         if (length != amounts.length) {
             revert NetYieldDistributor_AccountsAndAmountsLengthMismatch();
+        }
+
+        if (accounts.length == 0) {
+            revert NetYieldDistributor_AccountsArrayEmpty();
         }
 
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();

@@ -199,6 +199,9 @@ interface INetYieldDistributorErrors {
     /// @dev Thrown if the accounts and amounts arrays have different lengths when batch processing.
     error NetYieldDistributor_AccountsAndAmountsLengthMismatch();
 
+    /// @dev Thrown if the accounts array is empty.
+    error NetYieldDistributor_AccountsArrayEmpty();
+
     /// @dev Thrown if the amount to reduce exceeds the account's current advanced net yield balance.
     error NetYieldDistributor_AdvanceNetYieldInsufficientBalance();
 
