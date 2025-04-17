@@ -38,13 +38,13 @@ interface INetYieldDistributorPrimary {
      * @param account The account that had its advanced net yield reduced.
      * @param amount The amount by which the advanced net yield was reduced.
      */
-    event NetYieldReduced(address indexed account, uint256 amount);
+    event AdvancedNetYieldReduced(address indexed account, uint256 amount);
 
     // ------------------ Transactional functions ----------------- //
 
     /**
      * @dev Mints a specified amount of asset yield tokens to the contract.
-     * This increases the total supply of asset yield tokens available for distribution.
+     * This increases the total supply of net yield available for distribution.
      *
      * This function can only be called by an account with the appropriate role.
      *
@@ -56,7 +56,7 @@ interface INetYieldDistributorPrimary {
 
     /**
      * @dev Burns a specified amount of asset yield tokens from the contract.
-     * This decreases the total supply of asset yield tokens.
+     * This decreases the total supply of net yield for distribution.
      *
      * This function can only be called by an account with the appropriate role.
      *
@@ -82,16 +82,16 @@ interface INetYieldDistributorPrimary {
     /**
      * @dev Reduces the advanced net yield balance of specified accounts.
      * This operation decreases each account's current advanced net yield balance.
-     * Tokens are transferred from the treasury to the contract and burned.
+     * Tokens are transferred from the operational treasury to the contract and burned.
      *
      * This function can only be called by an account with the appropriate role.
      *
-     * Emits a {NetYieldReduced} event for each account whose advanced net yield is reduced.
+     * Emits a {AdvancedNetYieldReduced} event for each account whose advanced net yield is reduced.
      *
      * @param accounts The accounts to reduce the advanced net yield for.
      * @param amounts The amounts to reduce for each account.
      */
-    function reduceAdvanceNetYield(address[] calldata accounts, uint64[] calldata amounts) external;
+    function reduceAdvancedNetYield(address[] calldata accounts, uint64[] calldata amounts) external;
 
     // ------------------ View functions -------------------------- //
 
@@ -102,40 +102,38 @@ interface INetYieldDistributorPrimary {
      * @param account The account to query.
      * @return The current amount of advanced net yield for the account.
      */
-    function currentAdvanceNetYieldOf(address account) external view returns (uint256);
+    function advancedNetYieldOf(address account) external view returns (uint256);
 
     /**
-     * @dev Returns the total amount of advanced net yield for an account.
-     * This represents the cumulative historical amount of yield advanced to the account.
+     * @dev Returns the cumulative amount of reduced net yield for an account.
+     * This represents the total amount of net yield that has been advanced to the account and then reduced.
      *
      * @param account The account to query.
-     * @return The total amount of advanced net yield for the account.
+     * @return The cumulative amount of reduced net yield for the account.
      */
-    function totalAdvanceNetYieldOf(address account) external view returns (uint256);
+    function cumulativeReducedNetYieldOf(address account) external view returns (uint256);
 
     /**
-     * @dev Returns the total supply of asset yield tokens.
-     * This represents all asset yield tokens in circulation.
+     * @dev Returns the total supply of net yield tokens in circulation.
+     * This represents the total amount of net yield in circulation that is not necessarily advanced.
      *
-     * @return The total supply of asset yield tokens.
+     * @return The total supply of net yield tokens.
      */
-    function totalNetYieldSupply() external view returns (uint256);
+    function totalAssetYieldSupply() external view returns (uint256);
 
     /**
      * @dev Returns the total amount of advanced net yield across all accounts.
-     * This represents the sum of all current advanced net yield balances.
-     *
+     * This represents the total amount of net yield that has been advanced to all accounts.
      * @return The total amount of advanced net yield.
      */
-    function totalAdvancedYield() external view returns (uint256);
+    function totalAdvancedNetYield() external view returns (uint256);
 
     /**
-     * @dev Returns the total amount of reduced net yield across all accounts.
-     * This represents the cumulative amount of net yield that has been reduced.
-     *
+     * @dev Returns the cumulative amount of all reductions of advanced net yield across all accounts for all time.
+     * This represents the total amount of net yield that has been advanced to all accounts and then reduced.
      * @return The total amount of reduced net yield.
      */
-    function totalReducedYield() external view returns (uint256);
+    function cumulativeReducedNetYield() external view returns (uint256);
 }
 
 /**
@@ -162,7 +160,7 @@ interface INetYieldDistributorConfiguration {
      *
      * This function can be called only by an account with a special role.
      *
-     * Emits a {OperationalTreasuryUpdated} event.
+     * Emits an {OperationalTreasuryUpdated} event.
      *
      * @param operationalTreasury_ The address of the operational treasury.
      */
@@ -203,7 +201,7 @@ interface INetYieldDistributorErrors {
     error NetYieldDistributor_AccountsArrayEmpty();
 
     /// @dev Thrown if the amount to reduce exceeds the account's current advanced net yield balance.
-    error NetYieldDistributor_AdvanceNetYieldInsufficientBalance();
+    error NetYieldDistributor_AdvancedNetYieldInsufficientBalance();
 
     /// @dev Thrown if a zero amount is provided for an operation that requires a positive amount.
     error NetYieldDistributor_AmountZero();

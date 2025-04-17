@@ -9,20 +9,18 @@ pragma solidity ^0.8.0;
  */
 interface INetYieldDistributorTypes {
     /**
-     * @dev Defines the advanced net yield structure.
+     * @dev Defines the yield state structure.
      *
      * The fields:
      *
-     * - current -- The current amount of advanced net yield for an account.
-     *              Represents the outstanding balance that has not been reduced.
-     * - total ---- The total amount of advanced net yield for an account.
-     *              Tracks the historical total of all net yield ever advanced to the account.
+     * - advanced ----------- The current amount of net yield that has been advanced to an account.
+     * - cumulativeReduced -- The cumulative amount of net yield that has been advanced to an account and then reduced.
      */
-    struct AdvancedNetYield {
+    struct YieldState {
         // Slot 1
 
-        uint64 current;
-        uint64 total;
+        uint64 advanced;
+        uint64 cumulativeReduced;
         // uint128 __reserved; // Reserved for future use until the end of the storage slot
     }
 }

@@ -36,12 +36,12 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
      *
      * The fields:
      *
-     * - underlyingToken ------ The address of the underlying token contract.
-     * - operationalTreasury -- The address of the operational treasury wallet.
-     * - totalNetYieldSupply -- The total supply of asset yield tokens in circulation.
-     * - totalAdvancedYield ---- The sum of all advanced net yield balances for all accounts.
-     * - totalReducedYield ---- The sum of all reduced net yield balances for all accounts.
-     * - advancedNetYields ---- The mapping of advanced net yield for a given account.
+     * - underlyingToken ------------ The address of the underlying token contract.
+     * - operationalTreasury -------- The address of the operational treasury wallet.
+     * - totalAssetYieldSupply ------ The current total supply of asset yield tokens in circulation.
+     * - totalAdvancedNetYield ------ The current sum of all advanced net yield balances across all accounts.
+     * - cumulativeReducedNetYield -- The cumulative sum of all reductions of advanced net yield across all accounts.
+     * - yieldStates ---------------- The mapping of yield states for each account.
      *
      * @custom:storage-location erc7201:cloudwalk.storage.NetYieldDistributor
      */
@@ -55,25 +55,24 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
         // uint96 __reserved2; // Reserved for future use until the end of the storage slot
 
         // Slot 3
-        mapping(address account => AdvancedNetYield) advancedNetYields;
+        mapping(address account => YieldState) yieldStates;
 
         // Slot 4
-        uint64 totalNetYieldSupply;
+        uint64 totalAssetYieldSupply;
 
         // Slot 4 (continued)
-        uint64 totalAdvancedYield;
+        uint64 totalAdvancedNetYield;
 
         // Slot 4 (continued)
-        uint64 totalReducedYield;
+        uint64 cumulativeReducedNetYield;
     }
 
     // ------------------ Internal functions ---------------------- //
 
     /// @dev Returns the storage slot location for the `NetYieldDistributorStorage` struct.
     function _getNetYieldDistributorStorage() internal pure returns (NetYieldDistributorStorage storage data) {
-        bytes32 position = NET_YIELD_DISTRIBUTOR_STORAGE_LOCATION;
         assembly {
-            data.slot := position
+            data.slot := NET_YIELD_DISTRIBUTOR_STORAGE_LOCATION
         }
     }
 }

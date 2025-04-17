@@ -123,7 +123,7 @@ contract NetYieldDistributor is
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).mint(address(this), amount);
-        $.totalNetYieldSupply += amount;
+        $.totalAssetYieldSupply += amount;
 
         emit AssetYieldMinted(amount);
     }
@@ -141,7 +141,7 @@ contract NetYieldDistributor is
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).burn(amount);
-        $.totalNetYieldSupply -= amount;
+        $.totalAssetYieldSupply -= amount;
 
         emit AssetYieldBurned(amount);
     }
@@ -197,7 +197,7 @@ contract NetYieldDistributor is
      * - None of the amounts can exceed the current advanced net yield balance of the respective account.
      * - The treasury must have sufficient tokens for the transaction.
      */
-    function reduceAdvanceNetYield(
+    function reduceAdvancedNetYield(
         address[] calldata accounts,
         uint64[] calldata amounts
     ) external whenNotPaused onlyRole(MANAGER_ROLE) {
@@ -215,15 +215,15 @@ contract NetYieldDistributor is
         uint64 totalAmount = 0;
 
         for (uint256 i = 0; i < length;) {
-            _reduceAdvanceNetYield($, accounts[i], amounts[i]);
+            _reduceAdvancedNetYield($, accounts[i], amounts[i]);
             totalAmount += amounts[i];
             unchecked {
                 ++i;
             }
         }
 
-        $.totalNetYieldSupply -= totalAmount;
-        $.totalReducedYield += totalAmount;
+        $.totalAssetYieldSupply -= totalAmount;
+        $.cumulativeReducedNetYield += totalAmount;
 
         // Transfer the tokens from the treasury to the contract and burn them
         SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, address(this), totalAmount);
@@ -249,36 +249,36 @@ contract NetYieldDistributor is
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function currentAdvanceNetYieldOf(address account) external view returns (uint256) {
-        return _getNetYieldDistributorStorage().advancedNetYields[account].current;
+    function advancedNetYieldOf(address account) external view returns (uint256) {
+        return _getNetYieldDistributorStorage().yieldStates[account].advanced;
     }
 
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function totalAdvanceNetYieldOf(address account) external view returns (uint256) {
-        return _getNetYieldDistributorStorage().advancedNetYields[account].total;
+    function cumulativeReducedNetYieldOf(address account) external view returns (uint256) {
+        return _getNetYieldDistributorStorage().yieldStates[account].cumulativeReduced;
     }
 
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function totalNetYieldSupply() external view returns (uint256) {
-        return _getNetYieldDistributorStorage().totalNetYieldSupply;
+    function totalAssetYieldSupply() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().totalAssetYieldSupply;
     }
 
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function totalAdvancedYield() external view returns (uint256) {
-        return _getNetYieldDistributorStorage().totalAdvancedYield;
+    function totalAdvancedNetYield() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().totalAdvancedNetYield;
     }
 
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function totalReducedYield() external view returns (uint256) {
-        return _getNetYieldDistributorStorage().totalReducedYield;
+    function cumulativeReducedNetYield() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().cumulativeReducedNetYield;
     }
 
     // ------------------ Pure functions -------------------------- //
@@ -325,13 +325,12 @@ contract NetYieldDistributor is
     function _increaseAdvancedNetYield(NetYieldDistributorStorage storage $, address account, uint64 amount) internal {
         _checkAdvancedNetYieldOperationParameters(account, amount);
 
-        AdvancedNetYield storage advancedNetYield = $.advancedNetYields[account];
-        uint64 oldAdvancedNetYield = advancedNetYield.current;
+        YieldState storage yieldBalance = $.yieldStates[account];
+        uint64 oldAdvanced = yieldBalance.advanced;
 
-        uint64 newAdvancedNetYield = oldAdvancedNetYield + amount;
-        advancedNetYield.current = newAdvancedNetYield;
-        advancedNetYield.total += amount;
-        $.totalAdvancedYield += amount;
+        uint64 newAdvanced = oldAdvanced + amount;
+        yieldBalance.advanced = newAdvanced;
+        $.totalAdvancedNetYield += amount;
 
         emit NetYieldAdvanced(account, amount);
     }
@@ -349,33 +348,39 @@ contract NetYieldDistributor is
      * @param account The account to decrease the advanced net yield for.
      * @param amount The amount to decrease the advanced net yield by.
      *
-     * Emits a {NetYieldReduced} event.
+     * Emits a {AdvancedNetYieldReduced} event.
      */
-    function _reduceAdvanceNetYield(NetYieldDistributorStorage storage $, address account, uint64 amount) internal {
+    function _reduceAdvancedNetYield(NetYieldDistributorStorage storage $, address account, uint64 amount) internal {
         _checkAdvancedNetYieldOperationParameters(account, amount);
 
-        AdvancedNetYield storage advancedNetYield = $.advancedNetYields[account];
-        uint64 oldAdvancedNetYield = advancedNetYield.current;
+        YieldState storage yieldBalance = $.yieldStates[account];
+        uint64 oldAdvanced = yieldBalance.advanced;
 
-        if (amount > oldAdvancedNetYield) {
-            revert NetYieldDistributor_AdvanceNetYieldInsufficientBalance();
+        if (amount > oldAdvanced) {
+            revert NetYieldDistributor_AdvancedNetYieldInsufficientBalance();
         }
 
         // Safe to use unchecked here because:
         // 1. We've verified that amount <= oldAdvancedNetYield above
-        // 2. data.totalAdvancedYield >= advancedNetYield.current by definition
-        uint64 newAdvancedNetYield;
+        // 2. data.totalAdvancedNetYield >= advancedNetYield.current by definition
+        uint64 newAdvanced;
         unchecked {
-            newAdvancedNetYield = oldAdvancedNetYield - amount;
-            advancedNetYield.current = newAdvancedNetYield;
-            $.totalAdvancedYield -= amount;
+            newAdvanced = oldAdvanced - amount;
+            yieldBalance.advanced = newAdvanced;
+            yieldBalance.cumulativeReduced += amount;
+            $.totalAdvancedNetYield -= amount;
         }
 
-        emit NetYieldReduced(account, amount);
+        emit AdvancedNetYieldReduced(account, amount);
     }
 
     /**
      * @dev Validates the parameters for advanced net yield operations to ensure they meet requirements.
+     *
+     * Requirements:
+     *
+     * - The account address must not be zero.
+     * - The amount must not be zero.
      *
      * @param account The account to validate.
      * @param amount The amount to validate.
