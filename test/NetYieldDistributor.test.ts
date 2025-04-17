@@ -24,7 +24,7 @@ const EVENTS = {
   AssetYieldMinted: "AssetYieldMinted",
   AssetYieldBurned: "AssetYieldBurned",
   NetYieldAdvanced: "NetYieldAdvanced",
-  NetYieldReduced: "NetYieldReduced"
+  AdvancedNetYieldReduced: "AdvancedNetYieldReduced"
 };
 
 const ERRORS = {
@@ -36,7 +36,7 @@ const ERRORS = {
   NetYieldDistributor_AccountsAndAmountsLengthMismatch: "NetYieldDistributor_AccountsAndAmountsLengthMismatch",
   NetYieldDistributor_AccountAddressZero: "NetYieldDistributor_AccountAddressZero",
   NetYieldDistributor_AmountZero: "NetYieldDistributor_AmountZero",
-  NetYieldDistributor_AdvanceNetYieldInsufficientBalance: "NetYieldDistributor_AdvanceNetYieldInsufficientBalance",
+  NetYieldDistributor_AdvancedNetYieldInsufficientBalance: "NetYieldDistributor_AdvancedNetYieldInsufficientBalance",
   NetYieldDistributor_AccountsArrayEmpty: "NetYieldDistributor_AccountsArrayEmpty",
   EnforcedPause: "EnforcedPause"
 };
@@ -137,7 +137,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
   }
 
   describe("Function 'initialize()'", async () => {
-    it("Configures the contract correctly", async () => {
+    it("Initializes the contract with correct configuration", async () => {
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployContracts);
 
       expect(await netYieldDistributor.OWNER_ROLE()).to.equal(ROLES.OWNER_ROLE);
@@ -160,9 +160,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
       expect(await netYieldDistributor.underlyingToken()).to.equal(getAddress(tokenMock));
       expect(await netYieldDistributor.operationalTreasury()).to.equal(ADDRESS_ZERO);
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(0);
-      expect(await netYieldDistributor.totalAdvancedYield()).to.equal(0);
-      expect(await netYieldDistributor.totalReducedYield()).to.equal(0);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(0);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
+      expect(await netYieldDistributor.cumulativeReducedNetYield()).to.equal(0);
     });
 
     describe("Is reverted if", async () => {
@@ -189,7 +189,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
   });
 
   describe("Function 'upgradeToAndCall()'", async () => {
-    it("Performs the upgrade correctly", async () => {
+    it("Executes the upgrade correctly", async () => {
       const { netYieldDistributor } = await setUpFixture(deployContracts);
 
       await checkContractUupsUpgrading(netYieldDistributor, netYieldDistributorFactory);
@@ -222,7 +222,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
   });
 
   describe("Function 'setOperationalTreasury()'", async () => {
-    it("Updates treasury and emits the correct event", async () => {
+    it("Updates treasury address and emits the correct event", async () => {
       const { netYieldDistributor } = await setUpFixture(deployContracts);
 
       await expect(netYieldDistributor.setOperationalTreasury(treasury.address))
@@ -269,32 +269,32 @@ describe("Contract 'NetYieldDistributor'", async () => {
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const amount = YIELD_AMOUNT;
 
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(0);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(0);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(0);
 
       await expect(connect(netYieldDistributor, minter).mintAssetYield(amount))
         .to.emit(netYieldDistributor, EVENTS.AssetYieldMinted)
         .withArgs(amount);
 
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(amount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(amount);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(amount);
     });
 
-    it("Allows multiple mint operations", async () => {
+    it("Executes multiple mint operations correctly", async () => {
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const amount1 = YIELD_AMOUNT;
       const amount2 = YIELD_AMOUNT * 2n;
       const totalAmount = amount1 + amount2;
 
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount1));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(amount1);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(amount1);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(amount1);
 
       await expect(connect(netYieldDistributor, minter).mintAssetYield(amount2))
         .to.emit(netYieldDistributor, EVENTS.AssetYieldMinted)
         .withArgs(amount2);
 
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(totalAmount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(totalAmount);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(totalAmount);
     });
 
@@ -330,17 +330,17 @@ describe("Contract 'NetYieldDistributor'", async () => {
       const burnAmount = YIELD_AMOUNT;
       const remainingAmount = mintAmount - burnAmount;
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(mintAmount));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(mintAmount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(mintAmount);
 
       await expect(connect(netYieldDistributor, minter).burnAssetYield(burnAmount))
         .to.emit(netYieldDistributor, EVENTS.AssetYieldBurned)
         .withArgs(burnAmount);
 
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(remainingAmount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(remainingAmount);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(remainingAmount);
     });
 
-    it("Allows multiple burn operations", async () => {
+    it("Executes multiple burn operations correctly", async () => {
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const mintAmount = YIELD_AMOUNT * 4n;
       const burn1 = YIELD_AMOUNT;
@@ -349,22 +349,22 @@ describe("Contract 'NetYieldDistributor'", async () => {
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(mintAmount));
 
       await proveTx(connect(netYieldDistributor, minter).burnAssetYield(burn1));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(mintAmount - burn1);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(mintAmount - burn1);
 
       await proveTx(connect(netYieldDistributor, minter).burnAssetYield(burn2));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(remainingAmount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(remainingAmount);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(remainingAmount);
     });
 
-    it("Can burn entire yield balance", async () => {
+    it("Burns the entire yield balance correctly", async () => {
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const amount = YIELD_AMOUNT;
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(amount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(amount);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(amount);
 
       await proveTx(connect(netYieldDistributor, minter).burnAssetYield(amount));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(0);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(0);
       expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(0);
     });
 
@@ -405,7 +405,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
   describe("Function 'advanceNetYield()'", async () => {
     describe("Successfully executes when", async () => {
-      it("Advancing to a single account", async () => {
+      it("Advances yield to a single account correctly", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
@@ -424,17 +424,19 @@ describe("Contract 'NetYieldDistributor'", async () => {
           [-amount, amount]
         );
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(account)).to.equal(amount);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(amount);
+        expect(await netYieldDistributor.advancedNetYieldOf(account)).to.equal(amount);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(account)).to.equal(0);
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(account)).to.equal(amount);
-        expect(await netYieldDistributor.totalAdvanceNetYieldOf(account)).to.equal(amount);
+        expect(await netYieldDistributor.advancedNetYieldOf(account)).to.equal(amount);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(account)).to.equal(0);
       });
 
-      it("Advancing to multiple accounts, including duplicates", async () => {
+      it("Advances yield to multiple accounts, including duplicates", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const transferCount = 4;
+        // Setup 3 distinct accounts initially
         const accounts = users.slice(0, transferCount - 1).map(user => user.address);
+        // Add a duplicate entry of the first account to test account balance aggregation
         accounts.push(users[0].address);
         const amounts = YIELD_AMOUNT_VARIANTS.slice(0, transferCount - 1);
         amounts.push(YIELD_AMOUNT_VARIANTS[transferCount - 1]);
@@ -444,6 +446,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         const tx = await connect(netYieldDistributor, manager).advanceNetYield(accounts, amounts);
 
+        // Verify events for all accounts, including the duplicate
         for (let i = 0; i < accounts.length - 1; ++i) {
           await expect(tx)
             .to.emit(netYieldDistributor, EVENTS.NetYieldAdvanced)
@@ -453,23 +456,27 @@ describe("Contract 'NetYieldDistributor'", async () => {
           .to.emit(netYieldDistributor, EVENTS.NetYieldAdvanced)
           .withArgs(accounts[transferCount - 1], amounts[transferCount - 1]);
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[1])).to.equal(amounts[1]);
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[2])).to.equal(amounts[2]);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(totalAmount);
+        // Account[0] balance should equal the sum of its two transfers
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[0])).to.equal(0);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[1])).to.equal(amounts[1]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[1])).to.equal(0);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[2])).to.equal(amounts[2]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[2])).to.equal(0);
 
+        // Verify token transfers affected accounts correctly
         await expect(tx).to.changeTokenBalances(
           tokenMock,
           [getAddress(netYieldDistributor), accounts[0], accounts[1], accounts[2]],
           [-totalAmount, (amounts[0] + amounts[transferCount - 1]), amounts[1], amounts[2]]
         );
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
-        expect(await netYieldDistributor.totalAdvanceNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[1])).to.equal(amounts[1]);
-        expect(await netYieldDistributor.totalAdvanceNetYieldOf(accounts[1])).to.equal(amounts[1]);
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[2])).to.equal(amounts[2]);
-        expect(await netYieldDistributor.totalAdvanceNetYieldOf(accounts[2])).to.equal(amounts[2]);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[0])).to.equal(0);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[1])).to.equal(amounts[1]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[1])).to.equal(0);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[2])).to.equal(amounts[2]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[2])).to.equal(0);
       });
     });
 
@@ -561,9 +568,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
     });
   });
 
-  describe("Function 'reduceAdvanceNetYield()'", async () => {
+  describe("Function 'reduceAdvancedNetYield()'", async () => {
     describe("Successfully executes when", async () => {
-      it("Reducing a single account's full yield balance", async () => {
+      it("Reduces a single account's full yield balance", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
@@ -571,12 +578,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount * 2n));
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(account)).to.equal(amount);
-        expect(await netYieldDistributor.totalAdvanceNetYieldOf(account)).to.equal(amount);
+        expect(await netYieldDistributor.advancedNetYieldOf(account)).to.equal(amount);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(account)).to.equal(0);
 
-        const tx = connect(netYieldDistributor, manager).reduceAdvanceNetYield([account], [amount]);
+        const tx = connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [amount]);
         await expect(tx)
-          .to.emit(netYieldDistributor, EVENTS.NetYieldReduced)
+          .to.emit(netYieldDistributor, EVENTS.AdvancedNetYieldReduced)
           .withArgs(account, amount);
 
         await expect(tx).to.changeTokenBalances(
@@ -585,15 +592,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
           [-amount, 0]
         );
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(account)).to.equal(0);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(0);
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(amount);
+        expect(await netYieldDistributor.advancedNetYieldOf(account)).to.equal(0);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(account)).to.equal(amount);
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(account)).to.equal(0);
-        expect(await netYieldDistributor.totalAdvanceNetYieldOf(account)).to.equal(amount);
+        expect(await netYieldDistributor.advancedNetYieldOf(account)).to.equal(0);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(account)).to.equal(amount);
       });
 
-      it("Reducing yield balance for multiple accounts", async () => {
+      it("Reduces yield balance for multiple accounts", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
         const accounts = users.slice(0, 3).map(user => user.address);
         const amounts = YIELD_AMOUNT_VARIANTS.slice(0, 3);
@@ -604,19 +610,19 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         const initialTotals = [];
         for (let i = 0; i < accounts.length; i++) {
-          expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[i])).to.equal(amounts[i]);
-          const total = await netYieldDistributor.totalAdvanceNetYieldOf(accounts[i]);
+          expect(await netYieldDistributor.advancedNetYieldOf(accounts[i])).to.equal(amounts[i]);
+          const total = await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[i]);
           initialTotals.push(total);
-          expect(total).to.equal(amounts[i]);
+          expect(total).to.equal(0);
         }
 
-        const tx = connect(netYieldDistributor, manager).reduceAdvanceNetYield(accounts, amounts);
+        const tx = connect(netYieldDistributor, manager).reduceAdvancedNetYield(accounts, amounts);
         await expect(tx)
-          .to.emit(netYieldDistributor, EVENTS.NetYieldReduced)
+          .to.emit(netYieldDistributor, EVENTS.AdvancedNetYieldReduced)
           .withArgs(accounts[0], amounts[0])
-          .to.emit(netYieldDistributor, EVENTS.NetYieldReduced)
+          .to.emit(netYieldDistributor, EVENTS.AdvancedNetYieldReduced)
           .withArgs(accounts[1], amounts[1])
-          .to.emit(netYieldDistributor, EVENTS.NetYieldReduced)
+          .to.emit(netYieldDistributor, EVENTS.AdvancedNetYieldReduced)
           .withArgs(accounts[2], amounts[2]);
 
         await expect(tx).to.changeTokenBalances(
@@ -625,21 +631,17 @@ describe("Contract 'NetYieldDistributor'", async () => {
           [-totalAmount, 0]
         );
 
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[0])).to.equal(0);
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[1])).to.equal(0);
-        expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[2])).to.equal(0);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(0);
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(totalAmount);
-
-        for (let i = 0; i < accounts.length; i++) {
-          expect(await netYieldDistributor.currentAdvanceNetYieldOf(accounts[i])).to.equal(0);
-          expect(await netYieldDistributor.totalAdvanceNetYieldOf(accounts[i])).to.equal(initialTotals[i]);
-        }
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[0])).to.equal(0);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[0])).to.equal(amounts[0]);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[1])).to.equal(0);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[1])).to.equal(amounts[1]);
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[2])).to.equal(0);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[2])).to.equal(amounts[2]);
       });
     });
 
-    describe("Updates `total net yield supply` correctly", async () => {
-      it("When decreasing yield balance for accounts sequentially", async () => {
+    describe("Updates total net yield supply correctly", async () => {
+      it("When processing accounts sequentially", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
         const initialAmount = YIELD_AMOUNT_BASE * 2n;
@@ -647,28 +649,28 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         const accounts = [users[0].address, users[1].address];
         const amounts = [YIELD_AMOUNT_BASE, YIELD_AMOUNT_BASE / 2n];
-        const totalAdvancedYieldAmount = amounts[0] + amounts[1];
+        const totalAdvancedNetYieldAmount = amounts[0] + amounts[1];
 
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield(accounts, amounts));
 
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(totalAdvancedYieldAmount);
-        expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(initialAmount - totalAdvancedYieldAmount);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount);
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAdvancedNetYieldAmount);
+        expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(initialAmount - totalAdvancedNetYieldAmount);
 
-        await proveTx(connect(netYieldDistributor, manager).reduceAdvanceNetYield([accounts[0]], [amounts[0]]));
+        await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([accounts[0]], [amounts[0]]));
 
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount - amounts[0]);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(amounts[1]);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - amounts[0]);
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(amounts[1]);
         expect(await tokenMock.balanceOf(treasury.address)).to.equal(YIELD_AMOUNT - amounts[0]);
 
-        await proveTx(connect(netYieldDistributor, manager).reduceAdvanceNetYield([accounts[1]], [amounts[1]]));
+        await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([accounts[1]], [amounts[1]]));
 
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount - totalAdvancedYieldAmount);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(0);
-        expect(await tokenMock.balanceOf(treasury.address)).to.equal(YIELD_AMOUNT - totalAdvancedYieldAmount);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - totalAdvancedNetYieldAmount);
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
+        expect(await tokenMock.balanceOf(treasury.address)).to.equal(YIELD_AMOUNT - totalAdvancedNetYieldAmount);
       });
 
-      it("When decreasing yield balance for multiple accounts in batch", async () => {
+      it("When processing multiple accounts in batch", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
         const initialAmount = YIELD_AMOUNT_BASE * 6n;
@@ -680,14 +682,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield(accounts, amounts));
 
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(totalAmount);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount);
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAmount);
         const initialTreasuryBalance = await tokenMock.balanceOf(treasury.address);
 
-        await proveTx(connect(netYieldDistributor, manager).reduceAdvanceNetYield(accounts, amounts));
+        await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield(accounts, amounts));
 
-        expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount - totalAmount);
-        expect(await netYieldDistributor.totalAdvancedYield()).to.equal(0);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - totalAmount);
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
 
         expect(await tokenMock.balanceOf(treasury.address)).to.equal(initialTreasuryBalance - totalAmount);
       });
@@ -703,22 +705,22 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
         await pauseContract(netYieldDistributor);
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([account], [amount]))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [amount]))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.EnforcedPause);
       });
 
       it("Caller lacks `MANAGER_ROLE`", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(netYieldDistributor, stranger).reduceAdvanceNetYield([user.address], [YIELD_AMOUNT_BASE]))
+        await expect(connect(netYieldDistributor, stranger).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE]))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(stranger.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(netYieldDistributor, minter).reduceAdvanceNetYield([user.address], [YIELD_AMOUNT_BASE]))
+        await expect(connect(netYieldDistributor, minter).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE]))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(minter.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(netYieldDistributor, deployer).reduceAdvanceNetYield([user.address], [YIELD_AMOUNT_BASE]))
+        await expect(connect(netYieldDistributor, deployer).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE]))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
           .withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
@@ -728,28 +730,28 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const accounts = [user.address, users[1].address];
         const amounts = [YIELD_AMOUNT_BASE];
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield(accounts, amounts))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
       });
 
       it("Accounts array is empty", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([], []))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([], []))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccountsArrayEmpty);
       });
 
       it("Account address is zero", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([ADDRESS_ZERO], [YIELD_AMOUNT_BASE]))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([ADDRESS_ZERO], [YIELD_AMOUNT_BASE]))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccountAddressZero);
       });
 
       it("Amount is zero", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([user.address], [0]))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([user.address], [0]))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AmountZero);
       });
 
@@ -763,8 +765,8 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [initialAmount]));
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([account], [excessAmount]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AdvanceNetYieldInsufficientBalance);
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [excessAmount]))
+          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AdvancedNetYieldInsufficientBalance);
       });
 
       it("Treasury has not approved the contract to spend its tokens", async () => {
@@ -781,7 +783,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount * 2n));
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([account], [amount]))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [amount]))
           .to.be.reverted;
       });
 
@@ -800,7 +802,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount * 2n));
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([account], [amount]))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [amount]))
           .to.be.reverted;
       });
 
@@ -815,29 +817,31 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount * 2n));
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvanceNetYield([account], [amount]))
+        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [amount]))
           .to.be.reverted;
       });
     });
   });
 
   describe("Edge cases", async () => {
-    it("Handles maximum uint64 values", async () => {
+    it("Handles maximum uint64 values correctly", async () => {
+      // This test verifies the contract can handle the maximum allowed uint64 value
+      // without overflows or unexpected behavior
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const maxUint64 = maxUintForBits(64);
 
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(maxUint64 / 2n));
 
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(maxUint64 / 2n);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(maxUint64 / 2n);
 
       await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [maxUint64 / 2n]));
 
-      expect(await netYieldDistributor.currentAdvanceNetYieldOf(user.address)).to.equal(maxUint64 / 2n);
-      expect(await netYieldDistributor.totalAdvanceNetYieldOf(user.address)).to.equal(maxUint64 / 2n);
-      expect(await netYieldDistributor.totalAdvancedYield()).to.equal(maxUint64 / 2n);
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(maxUint64 / 2n);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(0);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(maxUint64 / 2n);
     });
 
-    it("Maintaining correct state after multiple operations", async () => {
+    it("Tracks state correctly for sequential operations on a single account", async () => {
       const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
       const initialAmount = YIELD_AMOUNT_BASE * 5n;
       const advanceAmount1 = YIELD_AMOUNT_BASE;
@@ -846,47 +850,112 @@ describe("Contract 'NetYieldDistributor'", async () => {
       const reduceAmount2 = YIELD_AMOUNT_BASE / 2n;
 
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(initialAmount));
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount);
 
       await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [advanceAmount1]));
 
-      expect(await netYieldDistributor.currentAdvanceNetYieldOf(user.address)).to.equal(advanceAmount1);
-      expect(await netYieldDistributor.totalAdvanceNetYieldOf(user.address)).to.equal(advanceAmount1);
-      expect(await netYieldDistributor.totalAdvancedYield()).to.equal(advanceAmount1);
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(advanceAmount1);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(0);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(advanceAmount1);
 
-      await proveTx(connect(netYieldDistributor, manager).reduceAdvanceNetYield([user.address], [reduceAmount1]));
+      await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([user.address], [reduceAmount1]));
 
-      expect(await netYieldDistributor.currentAdvanceNetYieldOf(user.address)).to.equal(advanceAmount1 - reduceAmount1);
-      expect(await netYieldDistributor.totalAdvanceNetYieldOf(user.address)).to.equal(advanceAmount1);
-      expect(await netYieldDistributor.totalReducedYield()).to.equal(reduceAmount1);
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(initialAmount - reduceAmount1);
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(advanceAmount1 - reduceAmount1);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(reduceAmount1);
+      expect(await netYieldDistributor.cumulativeReducedNetYield()).to.equal(reduceAmount1);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - reduceAmount1);
 
       await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [advanceAmount2]));
 
       const expectedCurrentAfterSecondAdvance = advanceAmount1 - reduceAmount1 + advanceAmount2;
-      const expectedTotalAfterSecondAdvance = advanceAmount1 + advanceAmount2;
 
-      expect(await netYieldDistributor.currentAdvanceNetYieldOf(user.address)).to.equal(expectedCurrentAfterSecondAdvance);
-      expect(await netYieldDistributor.totalAdvanceNetYieldOf(user.address)).to.equal(expectedTotalAfterSecondAdvance);
-      expect(await netYieldDistributor.totalAdvancedYield()).to.equal(expectedCurrentAfterSecondAdvance);
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(expectedCurrentAfterSecondAdvance);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(reduceAmount1);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(expectedCurrentAfterSecondAdvance);
 
-      await proveTx(connect(netYieldDistributor, manager).reduceAdvanceNetYield([user.address], [reduceAmount2]));
+      await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([user.address], [reduceAmount2]));
 
       const expectedFinalCurrent = expectedCurrentAfterSecondAdvance - reduceAmount2;
-      const expectedFinalTotal = expectedTotalAfterSecondAdvance;
+      const expectedFinalTotal = reduceAmount1 + reduceAmount2;
       const expectedTotalReduced = reduceAmount1 + reduceAmount2;
       const expectedNetYieldSupply = initialAmount - expectedTotalReduced;
 
-      expect(await netYieldDistributor.currentAdvanceNetYieldOf(user.address)).to.equal(expectedFinalCurrent);
-      expect(await netYieldDistributor.totalAdvanceNetYieldOf(user.address)).to.equal(expectedFinalTotal);
-      expect(await netYieldDistributor.totalAdvancedYield()).to.equal(expectedFinalCurrent);
-      expect(await netYieldDistributor.totalReducedYield()).to.equal(expectedTotalReduced);
-      expect(await netYieldDistributor.totalNetYieldSupply()).to.equal(expectedNetYieldSupply);
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(expectedFinalCurrent);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(expectedFinalTotal);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(expectedFinalCurrent);
+      expect(await netYieldDistributor.cumulativeReducedNetYield()).to.equal(expectedTotalReduced);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(expectedNetYieldSupply);
+    });
+
+    it("Tracks state correctly for concurrent operations across multiple accounts", async () => {
+      const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+      const initialAmount = YIELD_AMOUNT_BASE * 10n;
+      const accounts = users.slice(0, 3).map(user => user.address);
+
+      // Step 1: Initial minting
+      await proveTx(connect(netYieldDistributor, minter).mintAssetYield(initialAmount));
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount);
+
+      // Step 2: Advance different amounts to different accounts
+      const advanceAmounts = [YIELD_AMOUNT_BASE, YIELD_AMOUNT_BASE * 2n, YIELD_AMOUNT_BASE * 3n];
+      const totalAdvanced = advanceAmounts.reduce((acc, val) => acc + val, 0n);
+      await proveTx(connect(netYieldDistributor, manager).advanceNetYield(accounts, advanceAmounts));
+
+      // Verify all accounts received their correct amounts
+      for (let i = 0; i < accounts.length; i++) {
+        expect(await netYieldDistributor.advancedNetYieldOf(accounts[i])).to.equal(advanceAmounts[i]);
+        expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[i])).to.equal(0);
+      }
+
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAdvanced);
+
+      // Step 3: Reduce some amounts from the first two accounts only
+      const reduceAmounts = [advanceAmounts[0] / 2n, advanceAmounts[1] / 2n];
+      const totalReduced = reduceAmounts.reduce((acc, val) => acc + val, 0n);
+      await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield(
+        [accounts[0], accounts[1]],
+        [reduceAmounts[0], reduceAmounts[1]]
+      ));
+
+      // Verify first two accounts have reduced balances
+      expect(await netYieldDistributor.advancedNetYieldOf(accounts[0])).to.equal(advanceAmounts[0] - reduceAmounts[0]);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[0])).to.equal(reduceAmounts[0]);
+      expect(await netYieldDistributor.advancedNetYieldOf(accounts[1])).to.equal(advanceAmounts[1] - reduceAmounts[1]);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[1])).to.equal(reduceAmounts[1]);
+
+      // Third account should be unchanged by the reduction
+      expect(await netYieldDistributor.advancedNetYieldOf(accounts[2])).to.equal(advanceAmounts[2]);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[2])).to.equal(0);
+
+      // Global state checks
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAdvanced - totalReduced);
+      expect(await netYieldDistributor.cumulativeReducedNetYield()).to.equal(totalReduced);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - totalReduced);
+
+      // Step 4: Add more yield to the third account only
+      const additionalYield = YIELD_AMOUNT_BASE / 2n;
+      await proveTx(connect(netYieldDistributor, manager).advanceNetYield([accounts[2]], [additionalYield]));
+
+      // Verify third account balance increased but others remain unchanged
+      expect(await netYieldDistributor.advancedNetYieldOf(accounts[2])).to.equal(advanceAmounts[2] + additionalYield);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAdvanced - totalReduced + additionalYield);
+
+      // Verify final token balances match expected state
+      const expectedBalances = [
+        advanceAmounts[0],
+        advanceAmounts[1],
+        advanceAmounts[2] + additionalYield
+      ];
+
+      for (let i = 0; i < accounts.length; i++) {
+        const actualBalance = await tokenMock.balanceOf(accounts[i]);
+        expect(actualBalance).to.equal(expectedBalances[i]);
+      }
     });
   });
 
   describe("Function '$__VERSION()'", async () => {
-    it("Returns the expected version", async () => {
+    it("Returns the correct version", async () => {
       const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
 
       const netYieldDistributorVersion = await netYieldDistributor.$__VERSION();
