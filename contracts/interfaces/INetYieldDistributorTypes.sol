@@ -14,7 +14,9 @@ interface INetYieldDistributorTypes {
      * The fields:
      *
      * - current -- The current amount of advanced net yield for an account.
+     *              Represents the outstanding balance that has not been reduced.
      * - total ---- The total amount of advanced net yield for an account.
+     *              Tracks the historical total of all net yield ever advanced to the account.
      */
     struct AdvancedNetYield {
         // Slot 1

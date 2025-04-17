@@ -21,7 +21,9 @@ import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 /**
  * @title NetYieldDistributor contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
- * @dev The contract that manages the net yield for accounts.
+ * @dev A contract that manages the distribution of net yield to accounts.
+ * It handles minting and burning of asset yield tokens, advancing yield to accounts,
+ * and tracking advanced yield balances for each account.
  */
 contract NetYieldDistributor is
     NetYieldDistributorStorageLayout,
@@ -72,6 +74,7 @@ contract NetYieldDistributor is
      * - The token address must not be zero.
      *
      * @param underlyingToken_ The address of the token to set as the underlying one.
+     * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
      */
     function __NetYieldDistributor_init_unchained(address underlyingToken_) internal {
         _setRoleAdmin(OWNER_ROLE, OWNER_ROLE);
@@ -116,7 +119,7 @@ contract NetYieldDistributor is
      * - The contract must not be paused.
      * - The caller must have the {MINTER_ROLE} role.
      */
-    function mintAssetYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
+    function mintAssetYield(uint64 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).mint(address(this), amount);
@@ -134,7 +137,7 @@ contract NetYieldDistributor is
      * - The caller must have the {MINTER_ROLE} role.
      * - The contract must have sufficient token balance to cover the burn.
      */
-    function burnAssetYield(uint256 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
+    function burnAssetYield(uint64 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).burn(amount);
@@ -158,7 +161,7 @@ contract NetYieldDistributor is
      */
     function advanceNetYield(
         address[] calldata accounts,
-        uint256[] calldata amounts
+        uint64[] calldata amounts
     ) external whenNotPaused onlyRole(MANAGER_ROLE) {
         uint256 length = accounts.length;
 
@@ -172,7 +175,7 @@ contract NetYieldDistributor is
             _advanceNetYield($, accounts[i], amounts[i]);
             unchecked {
                 ++i;
-            } // Gas optimization - no risk of overflow with reasonable array sizes
+            }
         }
     }
 
@@ -188,11 +191,11 @@ contract NetYieldDistributor is
      * - None of the amounts can be zero.
      * - None of the amounts can exceed the maximum uint64 value.
      * - None of the amounts can exceed the current advanced net yield balance of the respective account.
-     * - The treasury must have sufficient tokens to cover the reduction and the burn.
+     * - The treasury must have sufficient tokens for the transaction.
      */
     function reduceAdvanceNetYield(
         address[] calldata accounts,
-        uint256[] calldata amounts
+        uint64[] calldata amounts
     ) external whenNotPaused onlyRole(MANAGER_ROLE) {
         uint256 length = accounts.length;
 
@@ -201,17 +204,22 @@ contract NetYieldDistributor is
         }
 
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
-        uint256 totalAmount = 0;
+        uint64 totalAmount = 0;
 
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i = 0; i < length;) {
             _reduceAdvanceNetYield($, accounts[i], amounts[i]);
             totalAmount += amounts[i];
             unchecked {
                 ++i;
-            } // Gas optimization - no risk of overflow with reasonable array sizes
+            }
         }
 
         $.totalNetYieldSupply -= totalAmount;
+        $.totalReducedYield += totalAmount;
+
+        // Transfer the tokens from the treasury to the contract and burn them
+        SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, address(this), totalAmount);
+        IERC20Mintable($.underlyingToken).burn(totalAmount);
     }
 
     // ------------------ View functions -------------------------- //
@@ -233,8 +241,15 @@ contract NetYieldDistributor is
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function advanceNetYieldOf(address account) external view returns (uint256) {
+    function currentAdvanceNetYieldOf(address account) external view returns (uint256) {
         return _getNetYieldDistributorStorage().advancedNetYields[account].current;
+    }
+
+    /**
+     * @inheritdoc INetYieldDistributorPrimary
+     */
+    function totalAdvanceNetYieldOf(address account) external view returns (uint256) {
+        return _getNetYieldDistributorStorage().advancedNetYields[account].total;
     }
 
     /**
@@ -247,8 +262,15 @@ contract NetYieldDistributor is
     /**
      * @inheritdoc INetYieldDistributorPrimary
      */
-    function totalAdvanceYield() external view returns (uint256) {
-        return _getNetYieldDistributorStorage().totalAdvanceYield;
+    function totalAdvancedYield() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().totalAdvancedYield;
+    }
+
+    /**
+     * @inheritdoc INetYieldDistributorPrimary
+     */
+    function totalReducedYield() external view returns (uint256) {
+        return _getNetYieldDistributorStorage().totalReducedYield;
     }
 
     // ------------------ Pure functions -------------------------- //
@@ -273,13 +295,13 @@ contract NetYieldDistributor is
      *
      * Emits a {NetYieldAdvanced} event (via the _increaseAdvancedNetYield function).
      */
-    function _advanceNetYield(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
+    function _advanceNetYield(NetYieldDistributorStorage storage $, address account, uint64 amount) internal {
         _increaseAdvancedNetYield($, account, amount);
         SafeERC20.safeTransfer(IERC20($.underlyingToken), account, amount);
     }
 
     /**
-     * @dev Increases the advanced net yield balance of an account.
+     * @dev Increases the advanced net yield balance of an account without transferring tokens.
      *
      * Requirements:
      *
@@ -292,22 +314,22 @@ contract NetYieldDistributor is
      *
      * Emits a {NetYieldAdvanced} event.
      */
-    function _increaseAdvancedNetYield(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
+    function _increaseAdvancedNetYield(NetYieldDistributorStorage storage $, address account, uint64 amount) internal {
         _checkAdvancedNetYieldOperationParameters(account, amount);
 
         AdvancedNetYield storage advancedNetYield = $.advancedNetYields[account];
-        uint256 oldAdvancedNetYield = advancedNetYield.current;
+        uint64 oldAdvancedNetYield = advancedNetYield.current;
 
-        uint256 newAdvancedNetYield = uint64(oldAdvancedNetYield) + uint64(amount); // Panic if result is larger than 64 bits
-        advancedNetYield.current = uint64(newAdvancedNetYield);
-        advancedNetYield.total += uint64(amount);
-        $.totalAdvanceYield += amount;
+        uint64 newAdvancedNetYield = oldAdvancedNetYield + amount;
+        advancedNetYield.current = newAdvancedNetYield;
+        advancedNetYield.total += amount;
+        $.totalAdvancedYield += amount;
 
         emit NetYieldAdvanced(account, amount);
     }
 
     /**
-     * @dev Decreases the advanced net yield balance of an account.
+     * @dev Decreases the advanced net yield balance of an account without burning tokens.
      *
      * Requirements:
      *
@@ -321,45 +343,42 @@ contract NetYieldDistributor is
      *
      * Emits a {NetYieldReduced} event.
      */
-    function _reduceAdvanceNetYield(NetYieldDistributorStorage storage $, address account, uint256 amount) internal {
+    function _reduceAdvanceNetYield(NetYieldDistributorStorage storage $, address account, uint64 amount) internal {
         _checkAdvancedNetYieldOperationParameters(account, amount);
 
         AdvancedNetYield storage advancedNetYield = $.advancedNetYields[account];
-        uint256 oldAdvancedNetYield = advancedNetYield.current;
+        uint64 oldAdvancedNetYield = advancedNetYield.current;
 
         if (amount > oldAdvancedNetYield) {
-            revert NetYieldDistributor_DecreaseAmountExcess();
+            revert NetYieldDistributor_AdvanceNetYieldInsufficientBalance();
         }
 
         // Safe to use unchecked here because:
         // 1. We've verified that amount <= oldAdvancedNetYield above
-        // 2. data.totalAdvanceYield >= advancedNetYield.current by definition
-        uint256 newAdvancedNetYield;
+        // 2. data.totalAdvancedYield >= advancedNetYield.current by definition
+        uint64 newAdvancedNetYield;
         unchecked {
             newAdvancedNetYield = oldAdvancedNetYield - amount;
-            advancedNetYield.current = uint64(newAdvancedNetYield);
-            $.totalAdvanceYield -= amount;
+            advancedNetYield.current = newAdvancedNetYield;
+            $.totalAdvancedYield -= amount;
         }
 
         emit NetYieldReduced(account, amount);
     }
 
     /**
-     * @dev Checks the parameters of the advanced net yield operation.
-     * @param account The account to update the advanced net yield for.
-     * @param amount The amount to update the advanced net yield by.
+     * @dev Validates the parameters for advanced net yield operations to ensure they meet requirements.
+     *
+     * @param account The account to validate.
+     * @param amount The amount to validate.
      */
-    function _checkAdvancedNetYieldOperationParameters(address account, uint256 amount) internal pure {
+    function _checkAdvancedNetYieldOperationParameters(address account, uint64 amount) internal pure {
         if (account == address(0)) {
             revert NetYieldDistributor_AccountAddressZero();
         }
 
         if (amount == 0) {
             revert NetYieldDistributor_AmountZero();
-        }
-
-        if (amount > type(uint64).max) {
-            revert NetYieldDistributor_AmountOverflow();
         }
     }
 

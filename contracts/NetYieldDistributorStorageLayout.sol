@@ -8,6 +8,7 @@ import { INetYieldDistributorTypes } from "./interfaces/INetYieldDistributorType
  * @title NetYieldDistributorStorageLayout contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev Defines the storage layout for the net yield distributor contract.
+ * Uses ERC-7201 namespaced storage pattern to maintain upgradability.
  */
 abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes {
     // ------------------ Constants ------------------------------- //
@@ -38,7 +39,8 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
      * - underlyingToken ------ The address of the underlying token contract.
      * - operationalTreasury -- The address of the operational treasury wallet.
      * - totalNetYieldSupply -- The total supply of asset yield tokens in circulation.
-     * - totalAdvanceYield ---- The sum of all advanced net yield balances for all accounts.
+     * - totalAdvancedYield ---- The sum of all advanced net yield balances for all accounts.
+     * - totalReducedYield ---- The sum of all reduced net yield balances for all accounts.
      * - advancedNetYields ---- The mapping of advanced net yield for a given account.
      *
      * @custom:storage-location erc7201:cloudwalk.storage.NetYieldDistributor
@@ -53,13 +55,16 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
         // uint96 __reserved2; // Reserved for future use until the end of the storage slot
 
         // Slot 3
-        uint256 totalNetYieldSupply;
+        mapping(address account => AdvancedNetYield) advancedNetYields;
 
         // Slot 4
-        uint256 totalAdvanceYield;
+        uint64 totalNetYieldSupply;
 
-        // Slot 5
-        mapping(address account => AdvancedNetYield) advancedNetYields;
+        // Slot 4 (continued)
+        uint64 totalAdvancedYield;
+
+        // Slot 4 (continued)
+        uint64 totalReducedYield;
     }
 
     // ------------------ Internal functions ---------------------- //
