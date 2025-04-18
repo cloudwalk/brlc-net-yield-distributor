@@ -60,8 +60,8 @@ contract NetYieldDistributor is
      */
     function initialize(address underlyingToken_) external initializer {
         __AccessControlExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __PausableExt_init_unchained(OWNER_ROLE);
-        __Rescuable_init_unchained(OWNER_ROLE);
+        __PausableExt_init(OWNER_ROLE);
+        __Rescuable_init(OWNER_ROLE);
         __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
         __NetYieldDistributor_init_unchained(underlyingToken_);
     }
