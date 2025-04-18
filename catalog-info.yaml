@@ -2,7 +2,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: brlc-asset-liability
-  description: AssetYield smart contracts
+  description: Asset Liability smart contracts
   annotations:
     github.com/project-slug: cloudwalk/brlc-asset-liability
     backstage.io/techdocs-ref: dir:.
