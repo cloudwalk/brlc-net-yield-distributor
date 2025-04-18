@@ -183,7 +183,10 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await expect(
           anotherNetYieldDistributorContract.initialize(ADDRESS_ZERO)
-        ).to.be.revertedWithCustomError(netYieldDistributorFactory, ERRORS.NetYieldDistributor_UnderlyingTokenAddressZero);
+        ).to.be.revertedWithCustomError(
+          netYieldDistributorFactory,
+          ERRORS.NetYieldDistributor_UnderlyingTokenAddressZero
+        );
       });
     });
   });
@@ -199,9 +202,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Caller lacks `OWNER_ROLE`", async () => {
         const { netYieldDistributor } = await setUpFixture(deployContracts);
 
-        await expect(connect(netYieldDistributor, stranger).upgradeToAndCall(getAddress(netYieldDistributor), "0x"))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.OWNER_ROLE);
+        await expect(
+          connect(netYieldDistributor, stranger).upgradeToAndCall(getAddress(netYieldDistributor), "0x")
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.OWNER_ROLE);
       });
 
       it("Implementation address is invalid", async () => {
@@ -217,7 +223,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
     it("Executes without reverting", async () => {
       const { netYieldDistributor } = await setUpFixture(deployContracts);
 
-      await expect(netYieldDistributor.proveNetYieldDistributor()).to.not.be.reverted;
+      await expect(netYieldDistributor.proveNetYieldDistributor()).not.to.be.reverted;
     });
   });
 
@@ -240,14 +246,21 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Caller lacks `OWNER_ROLE`", async () => {
         const { netYieldDistributor } = await setUpFixture(deployContracts);
 
-        await expect(connect(netYieldDistributor, stranger).setOperationalTreasury(treasury.address))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.OWNER_ROLE);
+        await expect(
+          connect(netYieldDistributor, stranger).setOperationalTreasury(treasury.address)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.OWNER_ROLE);
 
-        await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, manager.address));
-        await expect(connect(netYieldDistributor, manager).setOperationalTreasury(treasury.address))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(manager.address, ROLES.OWNER_ROLE);
+        await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, stranger.address));
+        await proveTx(netYieldDistributor.grantRole(ROLES.MINTER_ROLE, stranger.address));
+        await expect(
+          connect(netYieldDistributor, stranger).setOperationalTreasury(treasury.address)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.OWNER_ROLE);
       });
 
       it("New treasury address is the same as the previous one", async () => {
@@ -312,13 +325,26 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(YIELD_AMOUNT));
 
-        await expect(connect(netYieldDistributor, stranger).mintAssetYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.MINTER_ROLE);
+        await expect(
+          connect(netYieldDistributor, stranger).mintAssetYield(YIELD_AMOUNT)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.MINTER_ROLE);
 
-        await expect(connect(netYieldDistributor, manager).mintAssetYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(manager.address, ROLES.MINTER_ROLE);
+        await expect(
+          connect(netYieldDistributor, manager).mintAssetYield(YIELD_AMOUNT)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(manager.address, ROLES.MINTER_ROLE);
+
+        await expect(
+          connect(netYieldDistributor, deployer).mintAssetYield(YIELD_AMOUNT)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(deployer.address, ROLES.MINTER_ROLE);
       });
     });
   });
@@ -382,13 +408,26 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(YIELD_AMOUNT));
 
-        await expect(connect(netYieldDistributor, stranger).burnAssetYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.MINTER_ROLE);
+        await expect(
+          connect(netYieldDistributor, stranger).burnAssetYield(YIELD_AMOUNT)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.MINTER_ROLE);
 
-        await expect(connect(netYieldDistributor, manager).burnAssetYield(YIELD_AMOUNT))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(manager.address, ROLES.MINTER_ROLE);
+        await expect(
+          connect(netYieldDistributor, manager).burnAssetYield(YIELD_AMOUNT)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(manager.address, ROLES.MINTER_ROLE);
+
+        await expect(
+          connect(netYieldDistributor, deployer).burnAssetYield(YIELD_AMOUNT)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(deployer.address, ROLES.MINTER_ROLE);
       });
 
       it("Amount exceeds contract token balance", async () => {
@@ -457,7 +496,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
           .withArgs(accounts[transferCount - 1], amounts[transferCount - 1]);
 
         // Account[0] balance should equal the sum of its two transfers
-        expect(await netYieldDistributor.advancedNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
+        expect(
+          await netYieldDistributor.advancedNetYieldOf(accounts[0])
+        ).to.equal(amounts[0] + amounts[transferCount - 1]);
         expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[0])).to.equal(0);
         expect(await netYieldDistributor.advancedNetYieldOf(accounts[1])).to.equal(amounts[1]);
         expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[1])).to.equal(0);
@@ -471,7 +512,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
           [-totalAmount, (amounts[0] + amounts[transferCount - 1]), amounts[1], amounts[2]]
         );
 
-        expect(await netYieldDistributor.advancedNetYieldOf(accounts[0])).to.equal(amounts[0] + amounts[transferCount - 1]);
+        expect(
+          await netYieldDistributor.advancedNetYieldOf(accounts[0])
+        ).to.equal(amounts[0] + amounts[transferCount - 1]);
         expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[0])).to.equal(0);
         expect(await netYieldDistributor.advancedNetYieldOf(accounts[1])).to.equal(amounts[1]);
         expect(await netYieldDistributor.cumulativeReducedNetYieldOf(accounts[1])).to.equal(0);
@@ -496,17 +539,26 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(YIELD_AMOUNT_BASE * 2n));
 
-        await expect(connect(netYieldDistributor, minter).advanceNetYield([user.address], [YIELD_AMOUNT_BASE]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(minter.address, ROLES.MANAGER_ROLE);
+        await expect(
+          connect(netYieldDistributor, stranger).advanceNetYield([user.address], [YIELD_AMOUNT_BASE])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(netYieldDistributor, stranger).advanceNetYield([user.address], [YIELD_AMOUNT_BASE]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.MANAGER_ROLE);
+        await expect(
+          connect(netYieldDistributor, minter).advanceNetYield([user.address], [YIELD_AMOUNT_BASE])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(minter.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(netYieldDistributor, deployer).advanceNetYield([user.address], [YIELD_AMOUNT_BASE]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(deployer.address, ROLES.MANAGER_ROLE);
+        await expect(
+          connect(netYieldDistributor, deployer).advanceNetYield([user.address], [YIELD_AMOUNT_BASE])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
 
       it("Arrays length mismatch", async () => {
@@ -517,11 +569,19 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const accounts = [user.address, users[1].address];
         const amounts = [YIELD_AMOUNT_BASE];
 
-        await expect(connect(netYieldDistributor, manager).advanceNetYield(accounts, amounts))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
+        await expect(
+          connect(netYieldDistributor, manager).advanceNetYield(accounts, amounts)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch
+        );
 
-        await expect(connect(netYieldDistributor, manager).advanceNetYield([], amounts))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
+        await expect(
+          connect(netYieldDistributor, manager).advanceNetYield([], amounts)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch
+        );
       });
 
       it("Accounts array is empty", async () => {
@@ -655,7 +715,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount);
         expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAdvancedNetYieldAmount);
-        expect(await tokenMock.balanceOf(getAddress(netYieldDistributor))).to.equal(initialAmount - totalAdvancedNetYieldAmount);
+        expect(
+          await tokenMock.balanceOf(getAddress(netYieldDistributor))
+        ).to.equal(initialAmount - totalAdvancedNetYieldAmount);
 
         await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([accounts[0]], [amounts[0]]));
 
@@ -712,17 +774,26 @@ describe("Contract 'NetYieldDistributor'", async () => {
       it("Caller lacks `MANAGER_ROLE`", async () => {
         const { netYieldDistributor } = await setUpFixture(deployAndConfigureContracts);
 
-        await expect(connect(netYieldDistributor, stranger).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(stranger.address, ROLES.MANAGER_ROLE);
+        await expect(
+          connect(netYieldDistributor, stranger).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(stranger.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(netYieldDistributor, minter).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(minter.address, ROLES.MANAGER_ROLE);
+        await expect(
+          connect(netYieldDistributor, minter).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(minter.address, ROLES.MANAGER_ROLE);
 
-        await expect(connect(netYieldDistributor, deployer).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount)
-          .withArgs(deployer.address, ROLES.MANAGER_ROLE);
+        await expect(
+          connect(netYieldDistributor, deployer).reduceAdvancedNetYield([user.address], [YIELD_AMOUNT_BASE])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
+        ).withArgs(deployer.address, ROLES.MANAGER_ROLE);
       });
 
       it("Accounts and amounts arrays have different lengths", async () => {
@@ -730,8 +801,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const accounts = [user.address, users[1].address];
         const amounts = [YIELD_AMOUNT_BASE];
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield(accounts, amounts))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch);
+        await expect(
+          connect(netYieldDistributor, manager).reduceAdvancedNetYield(accounts, amounts)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AccountsAndAmountsLengthMismatch
+        );
       });
 
       it("Accounts array is empty", async () => {
@@ -765,8 +840,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [initialAmount]));
 
-        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [excessAmount]))
-          .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AdvancedNetYieldInsufficientBalance);
+        await expect(
+          connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [excessAmount])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_AdvancedNetYieldInsufficientBalance
+        );
       });
 
       it("Treasury has not approved the contract to spend its tokens", async () => {
@@ -807,7 +886,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
       });
 
       it("Operational treasury is not set", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployContracts);
+        const { netYieldDistributor } = await setUpFixture(deployContracts);
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
 
@@ -829,16 +908,24 @@ describe("Contract 'NetYieldDistributor'", async () => {
       // without overflows or unexpected behavior
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
       const maxUint64 = maxUintForBits(64);
+      await proveTx(tokenMock.mint(treasury.address, maxUint64));
 
-      await proveTx(connect(netYieldDistributor, minter).mintAssetYield(maxUint64 / 2n));
+      await proveTx(connect(netYieldDistributor, minter).mintAssetYield(maxUint64));
 
-      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(maxUint64 / 2n);
+      expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(maxUint64);
 
-      await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [maxUint64 / 2n]));
+      await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [maxUint64]));
 
-      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(maxUint64 / 2n);
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(maxUint64);
       expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(0);
-      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(maxUint64 / 2n);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(maxUint64);
+
+      await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([user.address], [maxUint64]));
+
+      expect(await netYieldDistributor.advancedNetYieldOf(user.address)).to.equal(0);
+      expect(await netYieldDistributor.cumulativeReducedNetYieldOf(user.address)).to.equal(maxUint64);
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
+      expect(await netYieldDistributor.cumulativeReducedNetYield()).to.equal(maxUint64);
     });
 
     it("Tracks state correctly for sequential operations on a single account", async () => {
@@ -938,7 +1025,8 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
       // Verify third account balance increased but others remain unchanged
       expect(await netYieldDistributor.advancedNetYieldOf(accounts[2])).to.equal(advanceAmounts[2] + additionalYield);
-      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAdvanced - totalReduced + additionalYield);
+      const expectedTotalAdvancedNetYield = totalAdvanced - totalReduced + additionalYield;
+      expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(expectedTotalAdvancedNetYield);
 
       // Verify final token balances match expected state
       const expectedBalances = [
