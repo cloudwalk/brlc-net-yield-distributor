@@ -19,7 +19,7 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
     /// @dev The role of minter that is allowed to mint and burn asset yield tokens.
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    /// @dev The role of manager that is allowed to perform operations with advanced net yield balances.
+    /// @dev The role of manager that is allowed to perform operations with advanced net yield of accounts.
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // ------------------ Storage layout -------------------------- //
@@ -56,15 +56,13 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
 
         // Slot 3
         mapping(address account => YieldState) yieldStates;
+        // No reserve until the end of the storage slot
 
         // Slot 4
         uint64 totalAssetYieldSupply;
-
-        // Slot 4 (continued)
         uint64 totalAdvancedNetYield;
-
-        // Slot 4 (continued)
         uint64 cumulativeReducedNetYield;
+        // uint64 __reserved3; // Reserved for future use until the end of the storage slot
     }
 
     // ------------------ Internal functions ---------------------- //

@@ -22,8 +22,8 @@ import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
  * @title NetYieldDistributor contract
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev A contract that manages the distribution of net yield to accounts.
- * It handles minting and burning of asset yield tokens, advancing yield to accounts,
- * and tracking advanced yield balances for each account.
+ * It handles minting and burning of asset yield tokens, advancing net yield to accounts,
+ * and tracking advanced net yield balances for each account.
  */
 contract NetYieldDistributor is
     NetYieldDistributorStorageLayout,
@@ -118,6 +118,7 @@ contract NetYieldDistributor is
      *
      * - The contract must not be paused.
      * - The caller must have the {MINTER_ROLE} role.
+     * - The amount must not exceed the maximum uint64 value.
      */
     function mintAssetYield(uint64 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
@@ -135,6 +136,7 @@ contract NetYieldDistributor is
      *
      * - The contract must not be paused.
      * - The caller must have the {MINTER_ROLE} role.
+     * - The amount must not exceed the maximum uint64 value.
      * - The contract must have sufficient token balance to cover the burn.
      */
     function burnAssetYield(uint64 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
@@ -154,9 +156,8 @@ contract NetYieldDistributor is
      * - The contract must not be paused.
      * - The caller must have the {MANAGER_ROLE} role.
      * - The length of accounts and amounts arrays must match.
-     * - None of the account addresses can be zero.
-     * - None of the amounts can be zero.
-     * - None of the amounts can exceed the maximum uint64 value.
+     * - None of the account addresses must be zero.
+     * - None of the amounts must be zero.
      * - The contract must have sufficient token balance to cover the transfers.
      */
     function advanceNetYield(
@@ -191,10 +192,10 @@ contract NetYieldDistributor is
      * - The contract must not be paused.
      * - The caller must have the {MANAGER_ROLE} role.
      * - The length of accounts and amounts arrays must match.
-     * - None of the account addresses can be zero.
-     * - None of the amounts can be zero.
-     * - None of the amounts can exceed the maximum uint64 value.
-     * - None of the amounts can exceed the current advanced net yield balance of the respective account.
+     * - None of the account addresses must be zero.
+     * - None of the amounts must be zero.
+     * - None of the amounts must exceed the maximum uint64 value.
+     * - None of the amounts must exceed the current advanced net yield balance of the respective account.
      * - The treasury must have sufficient tokens for the transaction.
      */
     function reduceAdvancedNetYield(
