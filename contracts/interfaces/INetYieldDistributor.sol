@@ -218,7 +218,6 @@ interface INetYieldDistributorErrors {
  * @title INetYieldDistributor interface
  * @author CloudWalk Inc. (See https://cloudwalk.io)
  * @dev The complete interface of the net yield distributor contract.
- * Combines primary operations, configuration, and error handling.
  */
 interface INetYieldDistributor is
     INetYieldDistributorPrimary,

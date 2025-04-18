@@ -5,11 +5,11 @@ pragma solidity ^0.8.0;
 /**
  * @title IERC20Mintable interface
  * @author CloudWalk Inc. (See https://www.cloudwalk.io)
- * @notice The interface of a token that supports mint and burn operations.
+ * @dev The interface of a token that supports mint and burn operations.
  */
 interface IERC20Mintable {
     /**
-     * @notice Mints tokens.
+     * @dev Mints tokens.
      *
      * Emits a {Mint} event.
      *
@@ -20,7 +20,7 @@ interface IERC20Mintable {
     function mint(address account, uint256 amount) external returns (bool);
 
     /**
-     * @notice Burns tokens.
+     * @dev Burns tokens.
      *
      * Emits a {Burn} event.
      *
