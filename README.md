@@ -1,4 +1,4 @@
-# Asset Liability
+# Assets, Liabilities and Yield smart contracts
 
 <p align="center">
   <img src="./docs/media/brlc-cover.png">
