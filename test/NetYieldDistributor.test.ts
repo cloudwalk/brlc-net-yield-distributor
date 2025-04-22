@@ -38,6 +38,7 @@ const ERRORS = {
   NetYieldDistributor_AmountZero: "NetYieldDistributor_AmountZero",
   NetYieldDistributor_AdvancedNetYieldInsufficientBalance: "NetYieldDistributor_AdvancedNetYieldInsufficientBalance",
   NetYieldDistributor_AccountsArrayEmpty: "NetYieldDistributor_AccountsArrayEmpty",
+  NetYieldDistributor_ExceedsAccountedSupply: "NetYieldDistributor_ExceedsAccountedSupply",
   EnforcedPause: "EnforcedPause"
 };
 
@@ -613,6 +614,77 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await expect(connect(netYieldDistributor, manager).advanceNetYield(accounts, amounts))
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AmountZero);
+      });
+
+      it("Distribution exceeds accounted supply", async () => {
+        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+
+        // Mint tokens through proper accounting
+        const mintAmount = YIELD_AMOUNT_BASE;
+        await proveTx(connect(netYieldDistributor, minter).mintAssetYield(mintAmount));
+
+        // Transfer additional tokens that aren't accounted in totalAssetYieldSupply
+        await proveTx(tokenMock.mint(getAddress(netYieldDistributor), YIELD_AMOUNT_BASE));
+
+        // Try to advance more than accounted for
+        const excessAmount = mintAmount + 1n;
+
+        // Should revert when exceeding accounted supply
+        await expect(
+          connect(netYieldDistributor, manager).advanceNetYield([user.address], [excessAmount])
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_ExceedsAccountedSupply
+        );
+
+        // Should succeed up to the accounted amount
+        await expect(
+          connect(netYieldDistributor, manager).advanceNetYield([user.address], [mintAmount])
+        ).not.to.be.reverted;
+      });
+
+      it("Cumulative distribution exceeds accounted supply", async () => {
+        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+
+        // Mint tokens through proper accounting
+        const mintAmount = YIELD_AMOUNT_BASE;
+        await proveTx(connect(netYieldDistributor, minter).mintAssetYield(mintAmount));
+
+        // Transfer additional tokens that aren't accounted
+        await proveTx(tokenMock.mint(getAddress(netYieldDistributor), YIELD_AMOUNT_BASE));
+
+        // First distribute half the accounted supply
+        const firstAdvanceAmount = mintAmount / 2n;
+        await proveTx(
+          connect(netYieldDistributor, manager).advanceNetYield([users[0].address], [firstAdvanceAmount])
+        );
+
+        // Verify current state
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(firstAdvanceAmount);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(mintAmount);
+
+        // Try to distribute more than remaining accounted supply to multiple accounts
+        // Sum of 3/4 of mintAmount exceeds the remaining 1/2
+        const secondAdvanceAmounts = [mintAmount / 4n, mintAmount / 2n];
+        const accounts = [users[1].address, users[2].address];
+
+        // Should revert when combined distributions exceed supply
+        await expect(
+          connect(netYieldDistributor, manager).advanceNetYield(accounts, secondAdvanceAmounts)
+        ).to.be.revertedWithCustomError(
+          netYieldDistributor,
+          ERRORS.NetYieldDistributor_ExceedsAccountedSupply
+        );
+
+        // Should succeed with exactly the remaining amount
+        const validAdvanceAmount = mintAmount - firstAdvanceAmount;
+        await expect(
+          connect(netYieldDistributor, manager).advanceNetYield([users[1].address], [validAdvanceAmount])
+        ).not.to.be.reverted;
+
+        // All accounted yield now distributed
+        expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(mintAmount);
+        expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(mintAmount);
       });
 
       it("Contract has insufficient balance", async () => {

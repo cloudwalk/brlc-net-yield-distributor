@@ -161,6 +161,7 @@ contract NetYieldDistributor is
      * - None of the account addresses must be zero.
      * - None of the amounts must be zero.
      * - The contract must have sufficient token balance to cover the transfers.
+     * - The total advanced net yield after distribution must not exceed the total asset yield supply.
      */
     function advanceNetYield(
         address[] calldata accounts,
@@ -172,17 +173,25 @@ contract NetYieldDistributor is
             revert NetYieldDistributor_AccountsAndAmountsLengthMismatch();
         }
 
-        if (accounts.length == 0) {
+        if (length == 0) {
             revert NetYieldDistributor_AccountsArrayEmpty();
         }
 
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
+        uint64 totalAmount = 0;
+        uint64 oldTotalAdvancedNetYield = $.totalAdvancedNetYield;
+
         for (uint256 i = 0; i < length; ) {
             _advanceNetYield($, accounts[i], amounts[i]);
+            totalAmount += amounts[i];
             unchecked {
                 ++i;
             }
+        }
+
+        if (oldTotalAdvancedNetYield + totalAmount > $.totalAssetYieldSupply) {
+            revert NetYieldDistributor_ExceedsAccountedSupply();
         }
     }
 
@@ -217,7 +226,7 @@ contract NetYieldDistributor is
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
         uint64 totalAmount = 0;
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ) {
             _reduceAdvancedNetYield($, accounts[i], amounts[i]);
             totalAmount += amounts[i];
             unchecked {
