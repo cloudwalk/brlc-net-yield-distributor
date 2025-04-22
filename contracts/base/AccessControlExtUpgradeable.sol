@@ -14,16 +14,11 @@ abstract contract AccessControlExtUpgradeable is AccessControlUpgradeable {
     // ------------------ Initializers ---------------------------- //
 
     /**
-     * @dev Internal initializer of the upgradable contract.
+     * @dev The unchained internal initializer of the upgradable contract
      *
-     * See details: https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable
-     */
-    function __AccessControlExt_init() internal onlyInitializing {}
-
-    /**
-     * @dev Unchained internal initializer of the upgradable contract.
+     * See details: https://docs.openzeppelin.com/contracts/5.x/upgradeable#multiple-inheritance
      *
-     * See details: https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable
+     * Note: The `..._init()` initializer has not been provided as redundant.
      */
     function __AccessControlExt_init_unchained() internal onlyInitializing {}
 
@@ -40,8 +35,12 @@ abstract contract AccessControlExtUpgradeable is AccessControlUpgradeable {
      * @param accounts The accounts to grant the role to.
      */
     function grantRoleBatch(bytes32 role, address[] memory accounts) public virtual onlyRole(getRoleAdmin(role)) {
-        for (uint256 i = 0; i < accounts.length; i++) {
+        uint256 count = accounts.length;
+        for (uint256 i = 0; i < count; ) {
             _grantRole(role, accounts[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -56,8 +55,12 @@ abstract contract AccessControlExtUpgradeable is AccessControlUpgradeable {
      * @param accounts The accounts to revoke the role from.
      */
     function revokeRoleBatch(bytes32 role, address[] memory accounts) public virtual onlyRole(getRoleAdmin(role)) {
-        for (uint256 i = 0; i < accounts.length; i++) {
+        uint256 count = accounts.length;
+        for (uint256 i = 0; i < count; ) {
             _revokeRole(role, accounts[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 }
