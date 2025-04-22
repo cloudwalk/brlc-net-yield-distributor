@@ -179,19 +179,15 @@ contract NetYieldDistributor is
 
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
-        uint64 totalAmount = 0;
-        uint64 oldTotalAdvancedNetYield = $.totalAdvancedNetYield;
-
         for (uint256 i = 0; i < length; ) {
             _advanceNetYield($, accounts[i], amounts[i]);
-            totalAmount += amounts[i];
             unchecked {
                 ++i;
             }
         }
 
-        if (oldTotalAdvancedNetYield + totalAmount > $.totalAssetYieldSupply) {
-            revert NetYieldDistributor_ExceedsAccountedSupply();
+        if ($.totalAdvancedNetYield > $.totalAssetYieldSupply) {
+            revert NetYieldDistributor_TotalAdvancedNetYieldExcess();
         }
     }
 

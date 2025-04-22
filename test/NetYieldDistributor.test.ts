@@ -38,7 +38,7 @@ const ERRORS = {
   NetYieldDistributor_AmountZero: "NetYieldDistributor_AmountZero",
   NetYieldDistributor_AdvancedNetYieldInsufficientBalance: "NetYieldDistributor_AdvancedNetYieldInsufficientBalance",
   NetYieldDistributor_AccountsArrayEmpty: "NetYieldDistributor_AccountsArrayEmpty",
-  NetYieldDistributor_ExceedsAccountedSupply: "NetYieldDistributor_ExceedsAccountedSupply",
+  NetYieldDistributor_TotalAdvancedNetYieldExcess: "NetYieldDistributor_TotalAdvancedNetYieldExcess",
   EnforcedPause: "EnforcedPause"
 };
 
@@ -616,7 +616,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
           .to.be.revertedWithCustomError(netYieldDistributor, ERRORS.NetYieldDistributor_AmountZero);
       });
 
-      it("Distribution exceeds accounted supply", async () => {
+      it("The total advanced net yield exceeds the total asset yield supply during a single distribution", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
         // Mint tokens through proper accounting
@@ -629,12 +629,12 @@ describe("Contract 'NetYieldDistributor'", async () => {
         // Try to advance more than accounted for
         const excessAmount = mintAmount + 1n;
 
-        // Should revert when exceeding accounted supply
+        // Should revert when exceeding total supply
         await expect(
           connect(netYieldDistributor, manager).advanceNetYield([user.address], [excessAmount])
         ).to.be.revertedWithCustomError(
           netYieldDistributor,
-          ERRORS.NetYieldDistributor_ExceedsAccountedSupply
+          ERRORS.NetYieldDistributor_TotalAdvancedNetYieldExcess
         );
 
         // Should succeed up to the accounted amount
@@ -643,7 +643,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         ).not.to.be.reverted;
       });
 
-      it("Cumulative distribution exceeds accounted supply", async () => {
+      it("The total advanced net yield exceeds the total asset yield supply during batch distributions", async () => {
         const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
 
         // Mint tokens through proper accounting
@@ -668,18 +668,18 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const secondAdvanceAmounts = [mintAmount / 4n, mintAmount / 2n];
         const accounts = [users[1].address, users[2].address];
 
-        // Should revert when combined distributions exceed supply
+        // Should revert when combined distributions exceed the total supply
         await expect(
           connect(netYieldDistributor, manager).advanceNetYield(accounts, secondAdvanceAmounts)
         ).to.be.revertedWithCustomError(
           netYieldDistributor,
-          ERRORS.NetYieldDistributor_ExceedsAccountedSupply
+          ERRORS.NetYieldDistributor_TotalAdvancedNetYieldExcess
         );
 
         // Should succeed with exactly the remaining amount
-        const validAdvanceAmount = mintAmount - firstAdvanceAmount;
+        const validAdvanceAmounts = [mintAmount - firstAdvanceAmount - 1n, 1n];
         await expect(
-          connect(netYieldDistributor, manager).advanceNetYield([users[1].address], [validAdvanceAmount])
+          connect(netYieldDistributor, manager).advanceNetYield(accounts, validAdvanceAmounts)
         ).not.to.be.reverted;
 
         // All accounted yield now distributed
