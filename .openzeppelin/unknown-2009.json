@@ -1,0 +1,508 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0xCe24ac347E25E8a0238A76D891b4Ac5441342535",
+      "txHash": "0x8540501fba46f5cf34cf0a97a3b1002136bfb01efab150ceb64e34e2cafc1af4",
+      "kind": "uups"
+    }
+  ],
+  "impls": {
+    "b04b889cef22ee525cd11a1d2bafbe5e1bdd140228e75710b973f187252de99a": {
+      "address": "0x6FfF2ff6210581A4B46340a1cC50EB32B5AeC3a6",
+      "txHash": "0x0f825bae45480dbd0f7b06241c5164361aac46ff8eca2fea9486b0eb87f8d136",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(YieldState)1770_storage)": {
+            "label": "mapping(address => struct INetYieldDistributorTypes.YieldState)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)24_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AccessControlStorage)34_storage": {
+            "label": "struct AccessControlUpgradeable.AccessControlStorage",
+            "members": [
+              {
+                "label": "_roles",
+                "type": "t_mapping(t_bytes32,t_struct(RoleData)24_storage)",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(InitializableStorage)145_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(NetYieldDistributorStorage)1488_storage": {
+            "label": "struct NetYieldDistributorStorageLayout.NetYieldDistributorStorage",
+            "members": [
+              {
+                "label": "underlyingToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "operationalTreasury",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "yieldStates",
+                "type": "t_mapping(t_address,t_struct(YieldState)1770_storage)",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "totalAssetYieldSupply",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "totalAdvancedNetYield",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "3"
+              },
+              {
+                "label": "cumulativeReducedNetYield",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(PausableStorage)296_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(RoleData)24_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "hasRole",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(YieldState)1770_storage": {
+            "label": "struct INetYieldDistributorTypes.YieldState",
+            "members": [
+              {
+                "label": "advanced",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "cumulativeReduced",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.AccessControl": [
+            {
+              "contract": "AccessControlUpgradeable",
+              "label": "_roles",
+              "type": "t_mapping(t_bytes32,t_struct(RoleData)24_storage)",
+              "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol:61",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ],
+          "erc7201:cloudwalk.storage.NetYieldDistributor": [
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "underlyingToken",
+              "type": "t_address",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:51",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "operationalTreasury",
+              "type": "t_address",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:55",
+              "offset": 0,
+              "slot": "1"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "yieldStates",
+              "type": "t_mapping(t_address,t_struct(YieldState)1770_storage)",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:59",
+              "offset": 0,
+              "slot": "2"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "totalAssetYieldSupply",
+              "type": "t_uint64",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:63",
+              "offset": 0,
+              "slot": "3"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "totalAdvancedNetYield",
+              "type": "t_uint64",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:64",
+              "offset": 8,
+              "slot": "3"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "cumulativeReducedNetYield",
+              "type": "t_uint64",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:65",
+              "offset": 16,
+              "slot": "3"
+            }
+          ]
+        }
+      }
+    },
+    "fe3044ddcc3f260133bf542abd155e850b13c88cad0a72595d81d54035aad5e3": {
+      "address": "0xD7836E6441A5e2a9eAAF7351F09FF5147DD39E0f",
+      "txHash": "0xb69dd7eccd44d840c72c80510df00833fa99c211d4f48e9ea5209cc36b726d33",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(YieldState)1770_storage)": {
+            "label": "mapping(address => struct INetYieldDistributorTypes.YieldState)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)24_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AccessControlStorage)34_storage": {
+            "label": "struct AccessControlUpgradeable.AccessControlStorage",
+            "members": [
+              {
+                "label": "_roles",
+                "type": "t_mapping(t_bytes32,t_struct(RoleData)24_storage)",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(InitializableStorage)145_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(NetYieldDistributorStorage)1488_storage": {
+            "label": "struct NetYieldDistributorStorageLayout.NetYieldDistributorStorage",
+            "members": [
+              {
+                "label": "underlyingToken",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "operationalTreasury",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "yieldStates",
+                "type": "t_mapping(t_address,t_struct(YieldState)1770_storage)",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "totalAssetYieldSupply",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "totalAdvancedNetYield",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "3"
+              },
+              {
+                "label": "cumulativeReducedNetYield",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(PausableStorage)296_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(RoleData)24_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "hasRole",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(YieldState)1770_storage": {
+            "label": "struct INetYieldDistributorTypes.YieldState",
+            "members": [
+              {
+                "label": "advanced",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "cumulativeReduced",
+                "type": "t_uint64",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.AccessControl": [
+            {
+              "contract": "AccessControlUpgradeable",
+              "label": "_roles",
+              "type": "t_mapping(t_bytes32,t_struct(RoleData)24_storage)",
+              "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol:61",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ],
+          "erc7201:cloudwalk.storage.NetYieldDistributor": [
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "underlyingToken",
+              "type": "t_address",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:51",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "operationalTreasury",
+              "type": "t_address",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:55",
+              "offset": 0,
+              "slot": "1"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "yieldStates",
+              "type": "t_mapping(t_address,t_struct(YieldState)1770_storage)",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:59",
+              "offset": 0,
+              "slot": "2"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "totalAssetYieldSupply",
+              "type": "t_uint64",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:63",
+              "offset": 0,
+              "slot": "3"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "totalAdvancedNetYield",
+              "type": "t_uint64",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:64",
+              "offset": 8,
+              "slot": "3"
+            },
+            {
+              "contract": "NetYieldDistributorStorageLayout",
+              "label": "cumulativeReducedNetYield",
+              "type": "t_uint64",
+              "src": "contracts\\NetYieldDistributorStorageLayout.sol:65",
+              "offset": 16,
+              "slot": "3"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
