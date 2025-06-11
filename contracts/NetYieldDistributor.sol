@@ -47,7 +47,7 @@ contract NetYieldDistributor is
     // ------------------ Initializers ---------------------------- //
 
     /**
-     * @dev Initializer of the upgradable contract.
+     * @dev The initialize function of the upgradeable contract.
      *
      * See details: https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable
      *
@@ -56,32 +56,17 @@ contract NetYieldDistributor is
      * - The function must not be called more than once.
      * - The token address must not be zero.
      *
-     * @param underlyingToken_ The address of the token to set as the underlying one.
-     * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
-     * Cannot be zero address.
+     * @param underlyingToken_ The address of the ERC20 token to set as the underlying one.
      */
     function initialize(address underlyingToken_) external initializer {
+        if (underlyingToken_ == address(0)) {
+            revert NetYieldDistributor_UnderlyingTokenAddressZero();
+        }
+
         __AccessControlExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
         __PausableExt_init_unchained();
         __Rescuable_init_unchained();
         __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __NetYieldDistributor_init_unchained(underlyingToken_);
-    }
-
-    /**
-     * @dev Unchained version of the initializer.
-     *
-     * Requirements:
-     *
-     * - The token address must not be zero.
-     *
-     * @param underlyingToken_ The address of the token to set as the underlying one.
-     * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
-     */
-    function __NetYieldDistributor_init_unchained(address underlyingToken_) internal {
-        if (underlyingToken_ == address(0)) {
-            revert NetYieldDistributor_UnderlyingTokenAddressZero();
-        }
 
         _setRoleAdmin(MINTER_ROLE, GRANTOR_ROLE);
         _setRoleAdmin(MANAGER_ROLE, GRANTOR_ROLE);
