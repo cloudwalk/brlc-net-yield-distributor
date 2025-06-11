@@ -62,8 +62,8 @@ contract NetYieldDistributor is
      */
     function initialize(address underlyingToken_) external initializer {
         __AccessControlExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __PausableExt_init(OWNER_ROLE);
-        __Rescuable_init(OWNER_ROLE);
+        __PausableExt_init_unchained();
+        __Rescuable_init_unchained();
         __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
         __NetYieldDistributor_init_unchained(underlyingToken_);
     }
@@ -79,14 +79,13 @@ contract NetYieldDistributor is
      * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
      */
     function __NetYieldDistributor_init_unchained(address underlyingToken_) internal {
-        _setRoleAdmin(OWNER_ROLE, OWNER_ROLE);
-        _setRoleAdmin(MINTER_ROLE, OWNER_ROLE);
-        _setRoleAdmin(MANAGER_ROLE, OWNER_ROLE);
-        _grantRole(OWNER_ROLE, _msgSender());
-
         if (underlyingToken_ == address(0)) {
             revert NetYieldDistributor_UnderlyingTokenAddressZero();
         }
+
+        _setRoleAdmin(MINTER_ROLE, GRANTOR_ROLE);
+        _setRoleAdmin(MANAGER_ROLE, GRANTOR_ROLE);
+        _grantRole(OWNER_ROLE, _msgSender());
 
         _getNetYieldDistributorStorage().underlyingToken = underlyingToken_;
     }

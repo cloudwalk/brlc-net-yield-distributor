@@ -13,6 +13,7 @@ const EXPECTED_VERSION: Version = {
 
 const ROLES = {
   OWNER_ROLE: ethers.id("OWNER_ROLE"),
+  GRANTOR_ROLE: ethers.id("GRANTOR_ROLE"),
   PAUSER_ROLE: ethers.id("PAUSER_ROLE"),
   MINTER_ROLE: ethers.id("MINTER_ROLE"),
   MANAGER_ROLE: ethers.id("MANAGER_ROLE"),
@@ -122,6 +123,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
     const fixture = await deployContracts();
     const { netYieldDistributor, tokenMock } = fixture;
 
+    await proveTx(netYieldDistributor.grantRole(ROLES.GRANTOR_ROLE, deployer.address));
     await proveTx(netYieldDistributor.grantRole(ROLES.MINTER_ROLE, minter.address));
     await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, manager.address));
     await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
@@ -133,6 +135,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
   }
 
   async function pauseContract(contract: Contract) {
+    await proveTx(contract.grantRole(ROLES.GRANTOR_ROLE, deployer.address));
     await proveTx(contract.grantRole(ROLES.PAUSER_ROLE, deployer.address));
     await proveTx(contract.pause());
   }
@@ -142,18 +145,21 @@ describe("Contract 'NetYieldDistributor'", async () => {
       const { netYieldDistributor, tokenMock } = await setUpFixture(deployContracts);
 
       expect(await netYieldDistributor.OWNER_ROLE()).to.equal(ROLES.OWNER_ROLE);
+      expect(await netYieldDistributor.GRANTOR_ROLE()).to.equal(ROLES.GRANTOR_ROLE);
       expect(await netYieldDistributor.MANAGER_ROLE()).to.equal(ROLES.MANAGER_ROLE);
       expect(await netYieldDistributor.MINTER_ROLE()).to.equal(ROLES.MINTER_ROLE);
       expect(await netYieldDistributor.PAUSER_ROLE()).to.equal(ROLES.PAUSER_ROLE);
       expect(await netYieldDistributor.RESCUER_ROLE()).to.equal(ROLES.RESCUER_ROLE);
 
       expect(await netYieldDistributor.getRoleAdmin(ROLES.OWNER_ROLE)).to.equal(ROLES.OWNER_ROLE);
-      expect(await netYieldDistributor.getRoleAdmin(ROLES.MANAGER_ROLE)).to.equal(ROLES.OWNER_ROLE);
-      expect(await netYieldDistributor.getRoleAdmin(ROLES.MINTER_ROLE)).to.equal(ROLES.OWNER_ROLE);
-      expect(await netYieldDistributor.getRoleAdmin(ROLES.PAUSER_ROLE)).to.equal(ROLES.OWNER_ROLE);
-      expect(await netYieldDistributor.getRoleAdmin(ROLES.RESCUER_ROLE)).to.equal(ROLES.OWNER_ROLE);
+      expect(await netYieldDistributor.getRoleAdmin(ROLES.GRANTOR_ROLE)).to.equal(ROLES.OWNER_ROLE);
+      expect(await netYieldDistributor.getRoleAdmin(ROLES.MANAGER_ROLE)).to.equal(ROLES.GRANTOR_ROLE);
+      expect(await netYieldDistributor.getRoleAdmin(ROLES.MINTER_ROLE)).to.equal(ROLES.GRANTOR_ROLE);
+      expect(await netYieldDistributor.getRoleAdmin(ROLES.PAUSER_ROLE)).to.equal(ROLES.GRANTOR_ROLE);
+      expect(await netYieldDistributor.getRoleAdmin(ROLES.RESCUER_ROLE)).to.equal(ROLES.GRANTOR_ROLE);
 
       expect(await netYieldDistributor.hasRole(ROLES.OWNER_ROLE, deployer.address)).to.equal(true);
+      expect(await netYieldDistributor.hasRole(ROLES.GRANTOR_ROLE, deployer.address)).to.equal(false);
       expect(await netYieldDistributor.hasRole(ROLES.MANAGER_ROLE, deployer.address)).to.equal(false);
       expect(await netYieldDistributor.hasRole(ROLES.MINTER_ROLE, deployer.address)).to.equal(false);
       expect(await netYieldDistributor.hasRole(ROLES.PAUSER_ROLE, deployer.address)).to.equal(false);
@@ -254,6 +260,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
           ERRORS.NetYieldDistributor_AccessControlUnauthorizedAccount
         ).withArgs(stranger.address, ROLES.OWNER_ROLE);
 
+        await proveTx(netYieldDistributor.grantRole(ROLES.GRANTOR_ROLE, deployer.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, stranger.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MINTER_ROLE, stranger.address));
         await expect(
@@ -925,6 +932,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
 
+        await proveTx(netYieldDistributor.grantRole(ROLES.GRANTOR_ROLE, deployer.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MINTER_ROLE, minter.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, manager.address));
         await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
@@ -943,6 +951,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
 
+        await proveTx(netYieldDistributor.grantRole(ROLES.GRANTOR_ROLE, deployer.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MINTER_ROLE, minter.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, manager.address));
         await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
@@ -962,6 +971,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
 
+        await proveTx(netYieldDistributor.grantRole(ROLES.GRANTOR_ROLE, deployer.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MINTER_ROLE, minter.address));
         await proveTx(netYieldDistributor.grantRole(ROLES.MANAGER_ROLE, manager.address));
 

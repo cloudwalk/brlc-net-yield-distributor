@@ -14,13 +14,10 @@ import { INetYieldDistributorTypes } from "./interfaces/INetYieldDistributorType
 abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes {
     // ------------------ Constants ------------------------------- //
 
-    /// @dev The role of this contract owner.
-    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
-
-    /// @dev The role of minter that is allowed to mint and burn asset yield tokens.
+    /// @dev The role of a minter that is allowed to mint and burn asset yield tokens.
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    /// @dev The role of manager that is allowed to perform operations with advanced net yield of accounts.
+    /// @dev The role of a manager that is allowed to perform operations with advanced net yield of accounts.
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // ------------------ Storage layout -------------------------- //
