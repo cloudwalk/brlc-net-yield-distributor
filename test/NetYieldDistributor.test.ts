@@ -195,6 +195,15 @@ describe("Contract 'NetYieldDistributor'", async () => {
           ERRORS.NetYieldDistributor_UnderlyingTokenAddressZero
         );
       });
+
+      it("Called for the contract implementation even for the first time", async () => {
+        const tokenAddress = user.address;
+        const cashierImplementation = await netYieldDistributorFactory.deploy() as Contract;
+        await cashierImplementation.waitForDeployment();
+
+        await expect(cashierImplementation.initialize(tokenAddress))
+          .to.be.revertedWithCustomError(cashierImplementation, ERRORS.NetYieldDistributor_InvalidInitialization);
+      });
     });
   });
 
