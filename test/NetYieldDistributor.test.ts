@@ -96,7 +96,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
     let tokenMockFactory = await ethers.getContractFactory("ERC20TokenMock");
     tokenMockFactory = tokenMockFactory.connect(deployer);
 
-    let tokenMock: Contract = await tokenMockFactory.deploy(name, symbol) as Contract;
+    let tokenMock = await tokenMockFactory.deploy(name, symbol) as Contract;
     await tokenMock.waitForDeployment();
     tokenMock = connect(tokenMock, deployer);
 
@@ -106,7 +106,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
   async function deployContracts(): Promise<Fixture> {
     const tokenMock = await deployTokenMock();
 
-    let netYieldDistributor: Contract = await upgrades.deployProxy(
+    let netYieldDistributor = await upgrades.deployProxy(
       netYieldDistributorFactory,
       [getAddress(tokenMock)]
     ) as Contract;
@@ -182,7 +182,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
       });
 
       it("Passed token address is zero", async () => {
-        const anotherNetYieldDistributorContract: Contract = await upgrades.deployProxy(
+        const anotherNetYieldDistributorContract = await upgrades.deployProxy(
           netYieldDistributorFactory,
           [],
           { initializer: false }
