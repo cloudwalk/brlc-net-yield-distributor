@@ -69,7 +69,7 @@ contract NetYieldDistributor is
             revert NetYieldDistributor_UnderlyingTokenAddressZero();
         }
 
-        __AccessControlExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
+        __AccessControlExt_init_unchained();
         __PausableExt_init_unchained();
         __Rescuable_init_unchained();
         __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
