@@ -189,7 +189,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await expect(
           anotherNetYieldDistributorContract.initialize(ADDRESS_ZERO)
         ).to.be.revertedWithCustomError(
-          netYieldDistributorFactory,
+          anotherNetYieldDistributorContract,
           ERROR_NAME_UNDERLYING_TOKEN_ADDRESS_ZERO
         );
       });
