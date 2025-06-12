@@ -359,8 +359,8 @@ contract NetYieldDistributor is
         }
 
         // Safe to use unchecked here because:
-        // 1. We've verified that amount <= oldAdvancedNetYield above
-        // 2. data.totalAdvancedNetYield >= advancedNetYield.current by definition
+        // 1. We've verified that amount <= oldAdvanced above
+        // 2. $.totalAdvancedNetYield >= yieldBalance.advanced by definition
         uint64 newAdvanced;
         unchecked {
             newAdvanced = oldAdvanced - amount;
