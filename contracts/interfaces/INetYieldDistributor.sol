@@ -8,7 +8,7 @@ pragma solidity ^0.8.4;
  * @dev Defines the primary interface of the net yield distributor contract.
  */
 interface INetYieldDistributorPrimary {
-    // ------------------ Events----------------------------------- //
+    // ------------------ Events ---------------------------------- //
 
     /**
      * @dev Emitted when asset yield tokens are minted.
