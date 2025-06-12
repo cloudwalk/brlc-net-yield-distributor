@@ -20,7 +20,7 @@ import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 /**
  * @title NetYieldDistributor contract
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev A contract that manages the distribution of net yield to accounts.
  *
  * This contract handles minting and burning of asset yield tokens, advancing net yield to accounts,

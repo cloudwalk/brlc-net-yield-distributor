@@ -6,7 +6,7 @@ import { INetYieldDistributorTypes } from "./interfaces/INetYieldDistributorType
 
 /**
  * @title NetYieldDistributorStorageLayout contract
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the storage layout for the net yield distributor contract.
  *
  * This contract uses ERC-7201 namespaced storage pattern to maintain upgradability.

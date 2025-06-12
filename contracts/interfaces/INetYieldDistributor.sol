@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 
 /**
  * @title INetYieldDistributorPrimary interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the primary interface of the net yield distributor contract.
  */
 interface INetYieldDistributorPrimary {
@@ -136,7 +136,7 @@ interface INetYieldDistributorPrimary {
 
 /**
  * @title INetYieldDistributorConfiguration interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the configuration interface of the net yield distributor contract.
  */
 interface INetYieldDistributorConfiguration {
@@ -185,7 +185,7 @@ interface INetYieldDistributorConfiguration {
 
 /**
  * @title INetYieldDistributorErrors interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the errors of the net yield distributor contract.
  */
 interface INetYieldDistributorErrors {
@@ -219,7 +219,7 @@ interface INetYieldDistributorErrors {
 
 /**
  * @title INetYieldDistributor interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev The complete interface of the net yield distributor contract.
  */
 interface INetYieldDistributor is
