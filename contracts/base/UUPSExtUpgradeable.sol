@@ -7,9 +7,11 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 /**
  * @title UUPSExtUpgradeable base contract
  * @author CloudWalk Inc. (See https://www.cloudwalk.io)
- * @dev Extends the OpenZeppelin's {UUPSUpgradeable} contract with additional checks for the new implementation address.
+ * @dev Extends OpenZeppelin's {UUPSUpgradeable} contract with additional checks for the new implementation address.
  */
 abstract contract UUPSExtUpgradeable is UUPSUpgradeable {
+    // ------------------ Errors ---------------------------------- //
+
     /// @dev Thrown if the provided new implementation address is not a contract.
     error UUPSExtUpgradeable_ImplementationAddressNotContract();
 
@@ -19,7 +21,7 @@ abstract contract UUPSExtUpgradeable is UUPSUpgradeable {
     // ------------------ Initializers ---------------------------- //
 
     /**
-     * @dev Unchained internal initializer of the upgradable contract.
+     * @dev Unchained internal initializer of the upgradeable contract.
      *
      * See details: https://docs.openzeppelin.com/contracts/5.x/upgradeable#multiple-inheritance
      *
@@ -30,7 +32,7 @@ abstract contract UUPSExtUpgradeable is UUPSUpgradeable {
     // ------------------ Internal functions ---------------------- //
 
     /**
-     * @dev Overrides the upgrade authorization function for UUPSProxy.
+     * @dev Overrides the upgrade authorization function for UUPSUpgradeable.
      * @param newImplementation The address of the new implementation of a proxy smart contract.
      */
     function _authorizeUpgrade(address newImplementation) internal override {
@@ -46,7 +48,7 @@ abstract contract UUPSExtUpgradeable is UUPSUpgradeable {
     }
 
     /**
-     * @dev Executes further validation steps of the upgrade including authorization and implementation address checks.
+     * @dev Executes further validation steps of the upgrade, including authorization and implementation address checks.
      *
      * It is expected that this function will be overridden in successor contracts.
      *

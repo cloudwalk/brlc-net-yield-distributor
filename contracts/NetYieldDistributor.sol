@@ -20,7 +20,7 @@ import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 /**
  * @title NetYieldDistributor contract
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev A contract that manages the distribution of net yield to accounts.
  *
  * This contract handles minting and burning of asset yield tokens, advancing net yield to accounts,
@@ -38,8 +38,14 @@ contract NetYieldDistributor is
 {
     // ------------------ Constructor ----------------------------- //
 
-    /// @dev Constructor that prohibits the initialization of the implementation of the upgradable contract.
-    /// @custom:oz-upgrades-unsafe-allow constructor
+    /**
+     * @dev Constructor that prohibits the initialization of the implementation of the upgradeable contract.
+     *
+     * See details:
+     * https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable#initializing_the_implementation_contract
+     *
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor() {
         _disableInitializers();
     }
@@ -47,7 +53,7 @@ contract NetYieldDistributor is
     // ------------------ Initializers ---------------------------- //
 
     /**
-     * @dev Initializer of the upgradable contract.
+     * @dev The initialize function of the upgradeable contract.
      *
      * See details: https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable
      *
@@ -56,37 +62,21 @@ contract NetYieldDistributor is
      * - The function must not be called more than once.
      * - The token address must not be zero.
      *
-     * @param underlyingToken_ The address of the token to set as the underlying one.
-     * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
-     * Cannot be zero address.
+     * @param underlyingToken_ The address of the ERC20 token to set as the underlying one.
      */
     function initialize(address underlyingToken_) external initializer {
-        __AccessControlExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __PausableExt_init(OWNER_ROLE);
-        __Rescuable_init(OWNER_ROLE);
-        __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
-        __NetYieldDistributor_init_unchained(underlyingToken_);
-    }
-
-    /**
-     * @dev Unchained version of the initializer.
-     *
-     * Requirements:
-     *
-     * - The token address must not be zero.
-     *
-     * @param underlyingToken_ The address of the token to set as the underlying one.
-     * This is the ERC20 token that will be used for transfers and advanced net yield tracking.
-     */
-    function __NetYieldDistributor_init_unchained(address underlyingToken_) internal {
-        _setRoleAdmin(OWNER_ROLE, OWNER_ROLE);
-        _setRoleAdmin(MINTER_ROLE, OWNER_ROLE);
-        _setRoleAdmin(MANAGER_ROLE, OWNER_ROLE);
-        _grantRole(OWNER_ROLE, _msgSender());
-
         if (underlyingToken_ == address(0)) {
             revert NetYieldDistributor_UnderlyingTokenAddressZero();
         }
+
+        __AccessControlExt_init_unchained();
+        __PausableExt_init_unchained();
+        __Rescuable_init_unchained();
+        __UUPSExt_init_unchained(); // This is needed only to avoid errors during coverage assessment
+
+        _setRoleAdmin(MINTER_ROLE, GRANTOR_ROLE);
+        _setRoleAdmin(MANAGER_ROLE, GRANTOR_ROLE);
+        _grantRole(OWNER_ROLE, _msgSender());
 
         _getNetYieldDistributorStorage().underlyingToken = underlyingToken_;
     }
@@ -369,8 +359,8 @@ contract NetYieldDistributor is
         }
 
         // Safe to use unchecked here because:
-        // 1. We've verified that amount <= oldAdvancedNetYield above
-        // 2. data.totalAdvancedNetYield >= advancedNetYield.current by definition
+        // 1. We've verified that amount <= oldAdvanced above
+        // 2. $.totalAdvancedNetYield >= yieldBalance.advanced by definition
         uint64 newAdvanced;
         unchecked {
             newAdvanced = oldAdvanced - amount;

@@ -4,11 +4,11 @@ pragma solidity ^0.8.4;
 
 /**
  * @title INetYieldDistributorPrimary interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the primary interface of the net yield distributor contract.
  */
 interface INetYieldDistributorPrimary {
-    // ------------------ Events----------------------------------- //
+    // ------------------ Events ---------------------------------- //
 
     /**
      * @dev Emitted when asset yield tokens are minted.
@@ -105,7 +105,7 @@ interface INetYieldDistributorPrimary {
     function advancedNetYieldOf(address account) external view returns (uint256);
 
     /**
-     * @dev Returns the cumulative amount of net yield that has been advanced to the account and then reduced.
+     * @dev Returns the cumulative amount of net yield that has been advanced to an account and then reduced.
      *
      * @param account The account to query.
      * @return The cumulative amount of reduced net yield for the account.
@@ -136,7 +136,7 @@ interface INetYieldDistributorPrimary {
 
 /**
  * @title INetYieldDistributorConfiguration interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the configuration interface of the net yield distributor contract.
  */
 interface INetYieldDistributorConfiguration {
@@ -185,7 +185,7 @@ interface INetYieldDistributorConfiguration {
 
 /**
  * @title INetYieldDistributorErrors interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev Defines the errors of the net yield distributor contract.
  */
 interface INetYieldDistributorErrors {
@@ -207,7 +207,7 @@ interface INetYieldDistributorErrors {
     /// @dev Thrown if the total advanced net yield after a distribution would exceed the total asset yield supply.
     error NetYieldDistributor_TotalAdvancedNetYieldExcess();
 
-    /// @dev Thrown if the new implementation address doesn't implement the {INetYieldDistributor} interface during upgrade.
+    /// @dev Thrown if the provided new implementation address is not of a net yield distributor contract.
     error NetYieldDistributor_ImplementationAddressInvalid();
 
     /// @dev Thrown if attempting to set an operational treasury address that is already set as the current one.
@@ -219,7 +219,7 @@ interface INetYieldDistributorErrors {
 
 /**
  * @title INetYieldDistributor interface
- * @author CloudWalk Inc. (See https://cloudwalk.io)
+ * @author CloudWalk Inc. (See https://www.cloudwalk.io)
  * @dev The complete interface of the net yield distributor contract.
  */
 interface INetYieldDistributor is
