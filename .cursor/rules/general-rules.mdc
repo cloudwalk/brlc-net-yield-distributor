@@ -1,6 +1,6 @@
 ---
 description: General rules to all files
-globs:
+globs: 
 alwaysApply: true
 ---
 
