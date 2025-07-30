@@ -21,6 +21,6 @@ interface INetYieldDistributorTypes {
 
         uint64 advanced;
         uint64 cumulativeReduced;
-        // uint128 __reserved; // Reserved for future use until the end of the storage slot
+        // uint128 __reserved; // Reserved until the end of the storage slot
     }
 }

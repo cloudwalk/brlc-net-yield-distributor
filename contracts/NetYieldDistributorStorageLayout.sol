@@ -46,11 +46,11 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
     struct NetYieldDistributorStorage {
         // Slot 1
         address underlyingToken;
-        // uint96 __reserved1; // Reserved for future use until the end of the storage slot
+        // uint96 __reserved1; // Reserved until the end of the storage slot
 
         // Slot 2
         address operationalTreasury;
-        // uint96 __reserved2; // Reserved for future use until the end of the storage slot
+        // uint96 __reserved2; // Reserved until the end of the storage slot
 
         // Slot 3
         mapping(address account => YieldState) yieldStates;
@@ -60,7 +60,7 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
         uint64 totalAssetYieldSupply;
         uint64 totalAdvancedNetYield;
         uint64 cumulativeReducedNetYield;
-        // uint64 __reserved3; // Reserved for future use until the end of the storage slot
+        // uint64 __reserved3; // Reserved until the end of the storage slot
     }
 
     // ------------------ Internal functions ---------------------- //
