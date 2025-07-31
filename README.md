@@ -1,4 +1,4 @@
-# Assets, Liabilities and Yield smart contracts
+# Net Yield Distributor
 
 <p align="center">
   <img src="./docs/media/brlc-cover.png">
