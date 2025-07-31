@@ -11,7 +11,7 @@ interface INetYieldDistributorTypes {
     /**
      * @dev Defines the yield state structure.
      *
-     * The fields:
+     * Fields:
      *
      * - advanced ----------- The current amount of net yield that has been advanced to an account.
      * - cumulativeReduced -- The cumulative amount of net yield that has been advanced to an account and then reduced.

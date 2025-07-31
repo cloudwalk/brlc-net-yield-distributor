@@ -32,7 +32,7 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
     /**
      * @dev Defines the contract storage structure.
      *
-     * The fields:
+     * Fields:
      *
      * - underlyingToken ------------ The address of the underlying token contract.
      * - operationalTreasury -------- The address of the operational treasury wallet.
