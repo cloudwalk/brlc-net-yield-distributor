@@ -11,7 +11,7 @@ interface INetYieldDistributorTypes {
     /**
      * @dev Defines the yield state structure.
      *
-     * The fields:
+     * Fields:
      *
      * - advanced ----------- The current amount of net yield that has been advanced to an account.
      * - cumulativeReduced -- The cumulative amount of net yield that has been advanced to an account and then reduced.
@@ -21,6 +21,6 @@ interface INetYieldDistributorTypes {
 
         uint64 advanced;
         uint64 cumulativeReduced;
-        // uint128 __reserved; // Reserved for future use until the end of the storage slot
+        // uint128 __reserved; // Reserved until the end of the storage slot
     }
 }
