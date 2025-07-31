@@ -1,12 +1,12 @@
-# Assets, Liabilities and Yield smart contracts
+# Net Yield Distributor
 
 <p align="center">
   <img src="./docs/media/brlc-cover.png">
 </p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![example branch parameter](https://github.com/cloudwalk/brlc-asset-liability/actions/workflows/build.yml/badge.svg?branch=main)
-![example branch parameter](https://github.com/cloudwalk/brlc-asset-liability/actions/workflows/test.yml/badge.svg?branch=main)
+![example branch parameter](https://github.com/cloudwalk/brlc-net-yield-distributor/actions/workflows/build.yml/badge.svg?branch=main)
+![example branch parameter](https://github.com/cloudwalk/brlc-net-yield-distributor/actions/workflows/test.yml/badge.svg?branch=main)
 
 This repository contains `NetYieldDistributor` smart contracts.
 
