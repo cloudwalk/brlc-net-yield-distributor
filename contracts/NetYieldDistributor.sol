@@ -130,12 +130,15 @@ contract NetYieldDistributor is
      * - The caller must have the {MINTER_ROLE} role.
      * - The amount must not exceed the maximum uint64 value.
      * - The contract must have sufficient token balance to cover the burn.
+     * - The total advanced net yield after the burn must not exceed the total asset yield supply.
      */
     function burnAssetYield(uint64 amount) external whenNotPaused onlyRole(MINTER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         IERC20Mintable($.underlyingToken).burn(amount);
         $.totalAssetYieldSupply -= amount;
+
+        _checkTotalAdvancedNetYieldInvariant($);
 
         emit AssetYieldBurned(amount);
     }
@@ -176,9 +179,7 @@ contract NetYieldDistributor is
             }
         }
 
-        if ($.totalAdvancedNetYield > $.totalAssetYieldSupply) {
-            revert NetYieldDistributor_TotalAdvancedNetYieldExcess();
-        }
+        _checkTotalAdvancedNetYieldInvariant($);
     }
 
     /**
@@ -226,6 +227,8 @@ contract NetYieldDistributor is
         // Transfer the tokens from the treasury to the contract and burn them
         SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, address(this), totalAmount);
         IERC20Mintable($.underlyingToken).burn(totalAmount);
+
+        _checkTotalAdvancedNetYieldInvariant($);
     }
 
     // ------------------ View functions -------------------------- //
@@ -390,6 +393,16 @@ contract NetYieldDistributor is
 
         if (amount == 0) {
             revert NetYieldDistributor_AmountZero();
+        }
+    }
+
+    /**
+     * @dev Checks the core accounting invariant and reverts on violation.
+     *
+     */
+    function _checkTotalAdvancedNetYieldInvariant(NetYieldDistributorStorage storage $) internal view {
+        if ($.totalAdvancedNetYield > $.totalAssetYieldSupply) {
+            revert NetYieldDistributor_TotalAdvancedNetYieldExcess();
         }
     }
 

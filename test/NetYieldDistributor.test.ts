@@ -8,7 +8,7 @@ import { checkEquality, maxUintForBits, setUpFixture } from "../test-utils/commo
 const EXPECTED_VERSION: Version = {
   major: 1,
   minor: 1,
-  patch: 0,
+  patch: 1,
 };
 
 // Events of the contract under test
@@ -421,6 +421,18 @@ describe("Contract 'NetYieldDistributor'", async () => {
         const burnAmount = mintAmount * 2n;
         await expect(connect(netYieldDistributor, minter).burnAssetYield(burnAmount))
           .to.be.reverted;
+      });
+
+      it("The total advanced net yield exceeds the total asset yield supply", async () => {
+        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+        await proveTx(connect(netYieldDistributor, minter).mintAssetYield(YIELD_AMOUNT));
+        await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [YIELD_AMOUNT / 2n]));
+
+        // netYieldDistributor recieves more tokens than holds in totalAssetYieldSupply somehow
+        await proveTx(tokenMock.mint(getAddress(netYieldDistributor), YIELD_AMOUNT));
+
+        await expect(connect(netYieldDistributor, minter).burnAssetYield(YIELD_AMOUNT))
+          .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_TOTAL_ADVANCED_NET_YIELD_EXCESS);
       });
     });
   });
