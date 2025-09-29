@@ -428,7 +428,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(YIELD_AMOUNT));
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([user.address], [YIELD_AMOUNT / 2n]));
 
-        // netYieldDistributor recieves more tokens than holds in totalAssetYieldSupply somehow
+        // netYieldDistributor receives more tokens than holds in totalAssetYieldSupply somehow
         await proveTx(tokenMock.mint(getAddress(netYieldDistributor), YIELD_AMOUNT));
 
         await expect(connect(netYieldDistributor, minter).burnAssetYield(YIELD_AMOUNT))

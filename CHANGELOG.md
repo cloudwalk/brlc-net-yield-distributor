@@ -20,4 +20,7 @@
 1. Added mocharc configuration file to integrate mocha test runner with IDEs.
 1. Added link to common documentation.
 
+## Migration steps
+No special actions are required for already deployed smart contracts, just upgrade them.
+
 # v1.1.0
