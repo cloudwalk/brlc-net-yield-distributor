@@ -228,6 +228,7 @@ contract NetYieldDistributor is
         SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, address(this), totalAmount);
         IERC20Mintable($.underlyingToken).burn(totalAmount);
 
+        // Looks like check is redundant, but keeping it for consistency
         _checkTotalAdvancedNetYieldInvariant($);
     }
 
