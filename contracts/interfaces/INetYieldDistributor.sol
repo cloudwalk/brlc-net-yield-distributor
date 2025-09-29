@@ -204,7 +204,7 @@ interface INetYieldDistributorErrors {
     /// @dev Thrown if a zero amount is provided for an operation that requires a positive amount.
     error NetYieldDistributor_AmountZero();
 
-    /// @dev Thrown if the total advanced net yield after a distribution would exceed the total asset yield supply.
+    /// @dev Thrown if the total advanced net yield after an operation would exceed the total asset yield supply.
     error NetYieldDistributor_TotalAdvancedNetYieldExcess();
 
     /// @dev Thrown if the provided new implementation address is not of a net yield distributor contract.
