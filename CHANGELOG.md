@@ -1,6 +1,6 @@
-## Main Changes
+# Current version
 
-### NetYieldDistributor updates
+## Main Changes
 
 1. Migrated operational treasury from EOA (Externally Owned Account) to ITreasury contract integration.
 1. Added ITreasury interface for treasury contract interactions with `withdraw()`, `underlyingToken()`, and
@@ -13,13 +13,6 @@
    the need for token approval.
 1. Added new custom error `NetYieldDistributor_TreasuryUnderlyingTokenMismatch` for treasury validation.
 1. Updated documentation across contracts and interfaces to reflect treasury contract pattern instead of EOA/wallet.
-
-### Test updates
-
-1. Created TreasuryMock contract for comprehensive testing of ITreasury integration.
-1. Added validation tests for `setOperationalTreasury()` covering invalid ITreasury contracts and token mismatches.
-1. Updated all existing tests to use TreasuryMock instead of EOA.
-1. Removed obsolete token approval tests as they are no longer applicable.
 
 ## Migration steps
 
