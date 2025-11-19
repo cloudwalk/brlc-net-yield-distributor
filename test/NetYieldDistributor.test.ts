@@ -43,7 +43,6 @@ const MINTER_ROLE: string = ethers.id("MINTER_ROLE");
 const MANAGER_ROLE: string = ethers.id("MANAGER_ROLE");
 
 const ADDRESS_ZERO = ethers.ZeroAddress;
-const ALLOWANCE_MAX = ethers.MaxUint256;
 
 const YIELD_AMOUNT_BASE = 12_345_678n;
 const YIELD_AMOUNT_VARIANTS: bigint[] = [
@@ -75,14 +74,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
   let deployer: HardhatEthersSigner;
   let minter: HardhatEthersSigner;
   let manager: HardhatEthersSigner;
-  let treasury: HardhatEthersSigner;
   let stranger: HardhatEthersSigner;
   let user: HardhatEthersSigner;
   let users: HardhatEthersSigner[];
 
   before(async () => {
     let moreUsers: HardhatEthersSigner[];
-    [deployer, minter, manager, treasury, stranger, user, ...moreUsers] = await ethers.getSigners();
+    [deployer, minter, manager, stranger, user, ...moreUsers] = await ethers.getSigners();
     users = [user, ...moreUsers];
 
     netYieldDistributorFactory = await ethers.getContractFactory("NetYieldDistributor");
@@ -810,7 +808,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - totalAdvancedNetYieldAmount);
         expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
-        expect(await tokenMock.balanceOf(getAddress(treasuryMock))).to.equal(YIELD_AMOUNT - totalAdvancedNetYieldAmount);
+        expect(
+          await tokenMock.balanceOf(getAddress(treasuryMock)),
+        ).to.equal(YIELD_AMOUNT - totalAdvancedNetYieldAmount);
       });
 
       it("When processing multiple accounts in batch", async () => {
