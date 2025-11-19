@@ -303,9 +303,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
         await expect(netYieldDistributor.setOperationalTreasury(getAddress(tokenMock)))
           .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_IMPLEMENTATION_ADDRESS_INVALID);
 
-        // Test with an EOA (will also fail the proveTreasury call)
+        // Test with an EOA (no code, fails the code length check)
         await expect(netYieldDistributor.setOperationalTreasury(stranger.address))
-          .to.be.reverted;
+          .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_IMPLEMENTATION_ADDRESS_INVALID);
       });
 
       it("Treasury underlying token does not match distributor's underlying token", async () => {

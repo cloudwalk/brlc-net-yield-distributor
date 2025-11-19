@@ -103,6 +103,11 @@ contract NetYieldDistributor is
 
         // Validate the treasury contract if address is not zero
         if (operationalTreasury_ != address(0)) {
+            // Verify it is a contract (has code)
+            if (operationalTreasury_.code.length == 0) {
+                revert NetYieldDistributor_ImplementationAddressInvalid();
+            }
+
             // Verify it implements ITreasury interface
             try ITreasury(operationalTreasury_).proveTreasury() {} catch {
                 revert NetYieldDistributor_ImplementationAddressInvalid();
