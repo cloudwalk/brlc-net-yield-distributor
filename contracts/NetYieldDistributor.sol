@@ -16,6 +16,7 @@ import { NetYieldDistributorStorageLayout } from "./NetYieldDistributorStorageLa
 import { INetYieldDistributor } from "./interfaces/INetYieldDistributor.sol";
 import { INetYieldDistributorPrimary } from "./interfaces/INetYieldDistributor.sol";
 import { INetYieldDistributorConfiguration } from "./interfaces/INetYieldDistributor.sol";
+import { ITreasury } from "./interfaces/ITreasury.sol";
 import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 /**
@@ -90,12 +91,27 @@ contract NetYieldDistributor is
      *
      * - The caller must have the {OWNER_ROLE} role.
      * - The new treasury address must not be the same as currently set.
+     * - If the new treasury address is not zero, it must be a valid ITreasury contract.
+     * - If the new treasury address is not zero, its underlying token must match the distributor's underlying token.
      */
     function setOperationalTreasury(address operationalTreasury_) external onlyRole(OWNER_ROLE) {
         NetYieldDistributorStorage storage $ = _getNetYieldDistributorStorage();
 
         if (operationalTreasury_ == $.operationalTreasury) {
             revert NetYieldDistributor_TreasuryAddressAlreadySet();
+        }
+
+        // Validate the treasury contract if address is not zero
+        if (operationalTreasury_ != address(0)) {
+            // Verify it implements ITreasury interface
+            try ITreasury(operationalTreasury_).proveTreasury() {} catch {
+                revert NetYieldDistributor_ImplementationAddressInvalid();
+            }
+
+            // Verify the underlying token matches
+            if (ITreasury(operationalTreasury_).underlyingToken() != $.underlyingToken) {
+                revert NetYieldDistributor_TreasuryUnderlyingTokenMismatch();
+            }
         }
 
         emit OperationalTreasuryUpdated(operationalTreasury_, $.operationalTreasury);
@@ -194,7 +210,6 @@ contract NetYieldDistributor is
      * - None of the amounts must be zero.
      * - None of the amounts must exceed the maximum uint64 value.
      * - None of the amounts must exceed the current advanced net yield balance of the respective account.
-     * - The treasury must have sufficient tokens for the transaction.
      */
     function reduceAdvancedNetYield(
         address[] calldata accounts,
@@ -224,8 +239,8 @@ contract NetYieldDistributor is
         $.totalAssetYieldSupply -= totalAmount;
         $.cumulativeReducedNetYield += totalAmount;
 
-        // Transfer the tokens from the treasury to the contract and burn them
-        SafeERC20.safeTransferFrom(IERC20($.underlyingToken), $.operationalTreasury, address(this), totalAmount);
+        // Withdraw the tokens from the treasury contract and burn them
+        ITreasury($.operationalTreasury).withdraw(totalAmount);
         IERC20Mintable($.underlyingToken).burn(totalAmount);
 
         // Looks like check is redundant, but keeping it for consistency

@@ -82,7 +82,7 @@ interface INetYieldDistributorPrimary {
     /**
      * @dev Reduces the advanced net yield balance of specified accounts.
      * This operation decreases each account's current advanced net yield balance.
-     * Tokens are transferred from the operational treasury to the contract and burned.
+     * Tokens are withdrawn from the operational treasury contract and burned.
      *
      * This function can only be called by an account with the appropriate role.
      *
@@ -154,7 +154,7 @@ interface INetYieldDistributorConfiguration {
 
     /**
      * @dev Sets the address of the operational treasury.
-     * The treasury holds tokens that will be transferred and burned during yield reduction.
+     * The treasury contract manages tokens that will be withdrawn and burned during yield reduction.
      *
      * This function can be called only by an account with a special role.
      *
@@ -168,7 +168,7 @@ interface INetYieldDistributorConfiguration {
 
     /**
      * @dev Returns the address of the operational treasury.
-     * The operational treasury is responsible for providing tokens during yield reduction.
+     * The operational treasury contract provides tokens via withdraw() during yield reduction.
      *
      * @return The address of the operational treasury.
      */
@@ -212,6 +212,9 @@ interface INetYieldDistributorErrors {
 
     /// @dev Thrown if attempting to set an operational treasury address that is already set as the current one.
     error NetYieldDistributor_TreasuryAddressAlreadySet();
+
+    /// @dev Thrown if the treasury's underlying token does not match the distributor's underlying token.
+    error NetYieldDistributor_TreasuryUnderlyingTokenMismatch();
 
     /// @dev Thrown if trying to initialize the contract with a zero address for the underlying token.
     error NetYieldDistributor_UnderlyingTokenAddressZero();

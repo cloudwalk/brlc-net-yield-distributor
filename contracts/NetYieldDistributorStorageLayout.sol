@@ -35,7 +35,7 @@ abstract contract NetYieldDistributorStorageLayout is INetYieldDistributorTypes 
      * Fields:
      *
      * - underlyingToken ------------ The address of the underlying token contract.
-     * - operationalTreasury -------- The address of the operational treasury wallet.
+     * - operationalTreasury -------- The address of the operational treasury contract.
      * - totalAssetYieldSupply ------ The current total supply of asset yield tokens in circulation.
      * - totalAdvancedNetYield ------ The current sum of all advanced net yield balances across all accounts.
      * - cumulativeReducedNetYield -- The cumulative sum of all reductions of advanced net yield across all accounts.
