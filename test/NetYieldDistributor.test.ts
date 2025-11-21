@@ -32,6 +32,7 @@ const ERROR_NAME_AMOUNT_ZERO = "NetYieldDistributor_AmountZero";
 const ERROR_NAME_IMPLEMENTATION_ADDRESS_INVALID = "NetYieldDistributor_ImplementationAddressInvalid";
 const ERROR_NAME_TOTAL_ADVANCED_NET_YIELD_EXCESS = "NetYieldDistributor_TotalAdvancedNetYieldExcess";
 const ERROR_NAME_TREASURY_ADDRESS_ALREADY_SET = "NetYieldDistributor_TreasuryAddressAlreadySet";
+const ERROR_NAME_TREASURY_UNDERLYING_TOKEN_MISMATCH = "NetYieldDistributor_TreasuryUnderlyingTokenMismatch";
 const ERROR_NAME_UNDERLYING_TOKEN_ADDRESS_ZERO = "NetYieldDistributor_UnderlyingTokenAddressZero";
 
 const OWNER_ROLE: string = ethers.id("OWNER_ROLE");
@@ -42,7 +43,6 @@ const MINTER_ROLE: string = ethers.id("MINTER_ROLE");
 const MANAGER_ROLE: string = ethers.id("MANAGER_ROLE");
 
 const ADDRESS_ZERO = ethers.ZeroAddress;
-const ALLOWANCE_MAX = ethers.MaxUint256;
 
 const YIELD_AMOUNT_BASE = 12_345_678n;
 const YIELD_AMOUNT_VARIANTS: bigint[] = [
@@ -65,6 +65,7 @@ interface Version {
 interface Fixture {
   netYieldDistributor: Contract;
   tokenMock: Contract;
+  treasuryMock: Contract;
 }
 
 describe("Contract 'NetYieldDistributor'", async () => {
@@ -73,14 +74,13 @@ describe("Contract 'NetYieldDistributor'", async () => {
   let deployer: HardhatEthersSigner;
   let minter: HardhatEthersSigner;
   let manager: HardhatEthersSigner;
-  let treasury: HardhatEthersSigner;
   let stranger: HardhatEthersSigner;
   let user: HardhatEthersSigner;
   let users: HardhatEthersSigner[];
 
   before(async () => {
     let moreUsers: HardhatEthersSigner[];
-    [deployer, minter, manager, treasury, stranger, user, ...moreUsers] = await ethers.getSigners();
+    [deployer, minter, manager, stranger, user, ...moreUsers] = await ethers.getSigners();
     users = [user, ...moreUsers];
 
     netYieldDistributorFactory = await ethers.getContractFactory("NetYieldDistributor");
@@ -101,8 +101,20 @@ describe("Contract 'NetYieldDistributor'", async () => {
     return tokenMock;
   }
 
+  async function deployTreasuryMock(tokenAddress: string): Promise<Contract> {
+    let treasuryMockFactory = await ethers.getContractFactory("TreasuryMock");
+    treasuryMockFactory = treasuryMockFactory.connect(deployer);
+
+    let treasuryMock = await treasuryMockFactory.deploy(tokenAddress) as Contract;
+    await treasuryMock.waitForDeployment();
+    treasuryMock = connect(treasuryMock, deployer);
+
+    return treasuryMock;
+  }
+
   async function deployContracts(): Promise<Fixture> {
     const tokenMock = await deployTokenMock();
+    const treasuryMock = await deployTreasuryMock(getAddress(tokenMock));
 
     let netYieldDistributor = await upgrades.deployProxy(
       netYieldDistributorFactory,
@@ -114,20 +126,20 @@ describe("Contract 'NetYieldDistributor'", async () => {
     return {
       netYieldDistributor,
       tokenMock,
+      treasuryMock,
     };
   }
 
   async function deployAndConfigureContracts(): Promise<Fixture> {
     const fixture = await deployContracts();
-    const { netYieldDistributor, tokenMock } = fixture;
+    const { netYieldDistributor, tokenMock, treasuryMock } = fixture;
 
     await proveTx(netYieldDistributor.grantRole(GRANTOR_ROLE, deployer.address));
     await proveTx(netYieldDistributor.grantRole(MINTER_ROLE, minter.address));
     await proveTx(netYieldDistributor.grantRole(MANAGER_ROLE, manager.address));
-    await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
+    await proveTx(netYieldDistributor.setOperationalTreasury(getAddress(treasuryMock)));
 
-    await proveTx(tokenMock.mint(treasury.address, YIELD_AMOUNT));
-    await proveTx(connect(tokenMock, treasury).approve(getAddress(netYieldDistributor), ALLOWANCE_MAX));
+    await proveTx(tokenMock.mint(getAddress(treasuryMock), YIELD_AMOUNT));
 
     return fixture;
   }
@@ -234,46 +246,75 @@ describe("Contract 'NetYieldDistributor'", async () => {
   });
 
   describe("Function 'setOperationalTreasury()'", async () => {
-    it("Updates treasury address and emits the correct event", async () => {
-      const { netYieldDistributor } = await setUpFixture(deployContracts);
+    it("Updates treasury address to valid treasury contract and emits the correct event", async () => {
+      const { netYieldDistributor, treasuryMock } = await setUpFixture(deployContracts);
 
-      await expect(netYieldDistributor.setOperationalTreasury(treasury.address))
+      await expect(netYieldDistributor.setOperationalTreasury(getAddress(treasuryMock)))
         .to.emit(netYieldDistributor, EVENT_NAME_OPERATIONAL_TREASURY_UPDATED)
-        .withArgs(treasury.address, ADDRESS_ZERO);
-      expect(await netYieldDistributor.operationalTreasury()).to.eq(treasury.address);
+        .withArgs(getAddress(treasuryMock), ADDRESS_ZERO);
+      expect(await netYieldDistributor.operationalTreasury()).to.eq(getAddress(treasuryMock));
+    });
+
+    it("Updates treasury address to zero and emits the correct event", async () => {
+      const { netYieldDistributor, treasuryMock } = await setUpFixture(deployContracts);
+
+      await proveTx(netYieldDistributor.setOperationalTreasury(getAddress(treasuryMock)));
 
       await expect(netYieldDistributor.setOperationalTreasury(ADDRESS_ZERO))
         .to.emit(netYieldDistributor, EVENT_NAME_OPERATIONAL_TREASURY_UPDATED)
-        .withArgs(ADDRESS_ZERO, treasury.address);
+        .withArgs(ADDRESS_ZERO, getAddress(treasuryMock));
       expect(await netYieldDistributor.operationalTreasury()).to.eq(ADDRESS_ZERO);
     });
 
     describe("Is reverted if", async () => {
       it("Caller lacks `OWNER_ROLE`", async () => {
-        const { netYieldDistributor } = await setUpFixture(deployContracts);
+        const { netYieldDistributor, treasuryMock } = await setUpFixture(deployContracts);
 
-        await expect(connect(netYieldDistributor, stranger).setOperationalTreasury(treasury.address))
+        await expect(connect(netYieldDistributor, stranger).setOperationalTreasury(getAddress(treasuryMock)))
           .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT)
           .withArgs(stranger.address, OWNER_ROLE);
 
         await proveTx(netYieldDistributor.grantRole(GRANTOR_ROLE, deployer.address));
         await proveTx(netYieldDistributor.grantRole(MANAGER_ROLE, stranger.address));
         await proveTx(netYieldDistributor.grantRole(MINTER_ROLE, stranger.address));
-        await expect(connect(netYieldDistributor, stranger).setOperationalTreasury(treasury.address))
+        await expect(connect(netYieldDistributor, stranger).setOperationalTreasury(getAddress(treasuryMock)))
           .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT)
           .withArgs(stranger.address, OWNER_ROLE);
       });
 
       it("New treasury address is the same as the previous one", async () => {
-        const { netYieldDistributor } = await setUpFixture(deployContracts);
+        const { netYieldDistributor, treasuryMock } = await setUpFixture(deployContracts);
 
         await expect(netYieldDistributor.setOperationalTreasury(ADDRESS_ZERO))
           .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_TREASURY_ADDRESS_ALREADY_SET);
 
-        await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
+        await proveTx(netYieldDistributor.setOperationalTreasury(getAddress(treasuryMock)));
 
-        await expect(netYieldDistributor.setOperationalTreasury(treasury.address))
+        await expect(netYieldDistributor.setOperationalTreasury(getAddress(treasuryMock)))
           .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_TREASURY_ADDRESS_ALREADY_SET);
+      });
+
+      it("Treasury address is not a valid ITreasury contract", async () => {
+        const { netYieldDistributor, tokenMock } = await setUpFixture(deployContracts);
+
+        // Test with a contract that doesn't implement ITreasury
+        await expect(netYieldDistributor.setOperationalTreasury(getAddress(tokenMock)))
+          .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_IMPLEMENTATION_ADDRESS_INVALID);
+
+        // Test with an EOA (no code, fails the code length check)
+        await expect(netYieldDistributor.setOperationalTreasury(stranger.address))
+          .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_IMPLEMENTATION_ADDRESS_INVALID);
+      });
+
+      it("Treasury underlying token does not match distributor's underlying token", async () => {
+        const { netYieldDistributor } = await setUpFixture(deployContracts);
+
+        // Deploy a treasury mock with a different token
+        const differentToken = await deployTokenMock();
+        const invalidTreasuryMock = await deployTreasuryMock(getAddress(differentToken));
+
+        await expect(netYieldDistributor.setOperationalTreasury(getAddress(invalidTreasuryMock)))
+          .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_TREASURY_UNDERLYING_TOKEN_MISMATCH);
       });
     });
   });
@@ -669,7 +710,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
   describe("Function 'reduceAdvancedNetYield()'", async () => {
     describe("Successfully executes when", async () => {
       it("Reduces a single account's full yield balance", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+        const { netYieldDistributor, tokenMock, treasuryMock } = await setUpFixture(deployAndConfigureContracts);
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
 
@@ -686,7 +727,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await expect(tx).to.changeTokenBalances(
           tokenMock,
-          [treasury.address, getAddress(netYieldDistributor)],
+          [getAddress(treasuryMock), getAddress(netYieldDistributor)],
           [-amount, 0],
         );
 
@@ -698,7 +739,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
       });
 
       it("Reduces yield balance for multiple accounts", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+        const { netYieldDistributor, tokenMock, treasuryMock } = await setUpFixture(deployAndConfigureContracts);
         const accounts = users.slice(0, 3).map(user => user.address);
         const amounts = YIELD_AMOUNT_VARIANTS.slice(0, 3);
         const totalAmount = amounts.reduce((acc, val) => acc + val, 0n);
@@ -725,7 +766,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         await expect(tx).to.changeTokenBalances(
           tokenMock,
-          [treasury.address, getAddress(netYieldDistributor)],
+          [getAddress(treasuryMock), getAddress(netYieldDistributor)],
           [-totalAmount, 0],
         );
 
@@ -740,7 +781,7 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
     describe("Updates total net yield supply correctly", async () => {
       it("When processing accounts sequentially", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+        const { netYieldDistributor, tokenMock, treasuryMock } = await setUpFixture(deployAndConfigureContracts);
 
         const initialAmount = YIELD_AMOUNT_BASE * 2n;
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(initialAmount));
@@ -761,17 +802,19 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - amounts[0]);
         expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(amounts[1]);
-        expect(await tokenMock.balanceOf(treasury.address)).to.equal(YIELD_AMOUNT - amounts[0]);
+        expect(await tokenMock.balanceOf(getAddress(treasuryMock))).to.equal(YIELD_AMOUNT - amounts[0]);
 
         await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield([accounts[1]], [amounts[1]]));
 
         expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - totalAdvancedNetYieldAmount);
         expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
-        expect(await tokenMock.balanceOf(treasury.address)).to.equal(YIELD_AMOUNT - totalAdvancedNetYieldAmount);
+        expect(
+          await tokenMock.balanceOf(getAddress(treasuryMock)),
+        ).to.equal(YIELD_AMOUNT - totalAdvancedNetYieldAmount);
       });
 
       it("When processing multiple accounts in batch", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+        const { netYieldDistributor, tokenMock, treasuryMock } = await setUpFixture(deployAndConfigureContracts);
 
         const initialAmount = YIELD_AMOUNT_BASE * 6n;
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(initialAmount));
@@ -784,14 +827,14 @@ describe("Contract 'NetYieldDistributor'", async () => {
 
         expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount);
         expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(totalAmount);
-        const initialTreasuryBalance = await tokenMock.balanceOf(treasury.address);
+        const initialTreasuryBalance = await tokenMock.balanceOf(getAddress(treasuryMock));
 
         await proveTx(connect(netYieldDistributor, manager).reduceAdvancedNetYield(accounts, amounts));
 
         expect(await netYieldDistributor.totalAssetYieldSupply()).to.equal(initialAmount - totalAmount);
         expect(await netYieldDistributor.totalAdvancedNetYield()).to.equal(0);
 
-        expect(await tokenMock.balanceOf(treasury.address)).to.equal(initialTreasuryBalance - totalAmount);
+        expect(await tokenMock.balanceOf(getAddress(treasuryMock))).to.equal(initialTreasuryBalance - totalAmount);
       });
     });
 
@@ -869,37 +912,17 @@ describe("Contract 'NetYieldDistributor'", async () => {
           .to.be.revertedWithCustomError(netYieldDistributor, ERROR_NAME_ADVANCED_NET_YIELD_INSUFFICIENT_BALANCE);
       });
 
-      it("Treasury has not approved the contract to spend its tokens", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployContracts);
-        const amount = YIELD_AMOUNT_BASE;
-        const account = user.address;
-
-        await proveTx(netYieldDistributor.grantRole(GRANTOR_ROLE, deployer.address));
-        await proveTx(netYieldDistributor.grantRole(MINTER_ROLE, minter.address));
-        await proveTx(netYieldDistributor.grantRole(MANAGER_ROLE, manager.address));
-        await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
-
-        await proveTx(tokenMock.mint(treasury.address, amount * 2n));
-
-        await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount * 2n));
-        await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
-
-        await expect(connect(netYieldDistributor, manager).reduceAdvancedNetYield([account], [amount]))
-          .to.be.reverted;
-      });
-
       it("Treasury has insufficient balance to cover the reduction", async () => {
-        const { netYieldDistributor, tokenMock } = await setUpFixture(deployContracts);
+        const { netYieldDistributor, tokenMock, treasuryMock } = await setUpFixture(deployContracts);
         const amount = YIELD_AMOUNT_BASE;
         const account = user.address;
 
         await proveTx(netYieldDistributor.grantRole(GRANTOR_ROLE, deployer.address));
         await proveTx(netYieldDistributor.grantRole(MINTER_ROLE, minter.address));
         await proveTx(netYieldDistributor.grantRole(MANAGER_ROLE, manager.address));
-        await proveTx(netYieldDistributor.setOperationalTreasury(treasury.address));
+        await proveTx(netYieldDistributor.setOperationalTreasury(getAddress(treasuryMock)));
 
-        await proveTx(connect(tokenMock, treasury).approve(getAddress(netYieldDistributor), ALLOWANCE_MAX));
-        await proveTx(tokenMock.mint(treasury.address, amount / 2n));
+        await proveTx(tokenMock.mint(getAddress(treasuryMock), amount / 2n));
 
         await proveTx(connect(netYieldDistributor, minter).mintAssetYield(amount * 2n));
         await proveTx(connect(netYieldDistributor, manager).advanceNetYield([account], [amount]));
@@ -930,9 +953,9 @@ describe("Contract 'NetYieldDistributor'", async () => {
     it("Handles maximum uint64 values correctly", async () => {
       // This test verifies the contract can handle the maximum allowed uint64 value
       // without overflows or unexpected behavior
-      const { netYieldDistributor, tokenMock } = await setUpFixture(deployAndConfigureContracts);
+      const { netYieldDistributor, tokenMock, treasuryMock } = await setUpFixture(deployAndConfigureContracts);
       const maxUint64 = maxUintForBits(64);
-      await proveTx(tokenMock.mint(treasury.address, maxUint64));
+      await proveTx(tokenMock.mint(getAddress(treasuryMock), maxUint64));
 
       await proveTx(connect(netYieldDistributor, minter).mintAssetYield(maxUint64));
 
