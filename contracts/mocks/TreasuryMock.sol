@@ -62,4 +62,3 @@ contract TreasuryMock is ITreasury {
     /// @inheritdoc ITreasury
     function proveTreasury() external pure {}
 }
-

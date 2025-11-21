@@ -112,7 +112,6 @@ contract NetYieldDistributor is
             try ITreasury(operationalTreasury_).proveTreasury() {} catch {
                 revert NetYieldDistributor_ImplementationAddressInvalid();
             }
-
             // Verify the underlying token matches
             if (ITreasury(operationalTreasury_).underlyingToken() != $.underlyingToken) {
                 revert NetYieldDistributor_TreasuryUnderlyingTokenMismatch();
